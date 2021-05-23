@@ -1,7 +1,6 @@
-import unittest
 import numpy as np
 from scipy.special import binom
-from valentbind.model import polyc, polyfc
+from valentbind import polyc, polyfc
 
 
 def genPerm(len, sum):
@@ -34,61 +33,56 @@ def polyfc2(L0, KxStar, f, Rtot, LigC, Kav):
     return polyc(L0, KxStar, Rtot, Cplx, Ctheta, Kav)
 
 
-class TestPolyc(unittest.TestCase):
-    def test_equivalence(self):
-        L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
-        KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
-        f = np.random.randint(1, 10)
-        nl = np.random.randint(1, 10)
-        nr = np.random.randint(1, 10)
-        Rtot = np.floor(100.0 + np.random.rand(nr) * (10.0 ** np.random.randint(4, 6, size=nr)))
-        LigC = np.random.rand(nl) * (10.0 ** np.random.randint(1, 2, size=nl))
-        Kav = np.random.rand(nl, nr) * (10.0 ** np.random.randint(3, 7, size=(nl, nr)))
+def test_equivalence():
+    L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
+    KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
+    f = np.random.randint(1, 10)
+    nl = np.random.randint(1, 10)
+    nr = np.random.randint(1, 10)
+    Rtot = np.floor(100.0 + np.random.rand(nr) * (10.0 ** np.random.randint(4, 6, size=nr)))
+    LigC = np.random.rand(nl) * (10.0 ** np.random.randint(1, 2, size=nl))
+    Kav = np.random.rand(nl, nr) * (10.0 ** np.random.randint(3, 7, size=(nl, nr)))
 
-        res = polyfc(L0, KxStar, f, Rtot, LigC, Kav)
-        res2 = polyfc2(L0, KxStar, f, Rtot, LigC, Kav)
-        res20 = np.sum(res2[0])
-        res21 = np.sum(res2[1])
+    res = polyfc(L0, KxStar, f, Rtot, LigC, Kav)
+    res2 = polyfc2(L0, KxStar, f, Rtot, LigC, Kav)
+    res20 = np.sum(res2[0])
+    res21 = np.sum(res2[1])
 
-        self.assertTrue(abs(res[0] - res20) < res[0] * 1e-7)
-        self.assertTrue(abs(res[1] - res21) < res[1] * 1e-7)
-        self.assertTrue(abs(np.sum(res[2]) - res[0]) < res[1] * 1e-3)
+    assert abs(res[0] - res20) < res[0] * 1e-7
+    assert abs(res[1] - res21) < res[1] * 1e-7
+    assert abs(np.sum(res[2]) - res[0]) < res[1] * 1e-3
 
-    def test_null_monomer(self):
-        # [3 0 0] should be equivalent to [3 0 5] if the last ligand has affinity 0
-        L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
-        KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
-        Rtot = [1e5]
-        Kav = [[2e7], [3e5], [0]]
+def test_null_monomer():
+    # [3 0 0] should be equivalent to [3 0 5] if the last ligand has affinity 0
+    L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
+    KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
+    Rtot = [1e5]
+    Kav = [[2e7], [3e5], [0]]
 
-        res11 = polyc(L0, KxStar, Rtot, [[3, 0, 0]], [1], Kav)
-        res12 = polyc(L0, KxStar, Rtot, [[3, 0, 5]], [1], Kav)
-        res21 = polyc(L0, KxStar, Rtot, [[0, 6, 0]], [1], Kav)
-        res22 = polyc(L0, KxStar, Rtot, [[0, 6, 3]], [1], Kav)
-        res31 = polyc(L0, KxStar, Rtot, [[2, 4, 0]], [1], Kav)
-        res32 = polyc(L0, KxStar, Rtot, [[2, 4, 5]], [1], Kav)
+    res11 = polyc(L0, KxStar, Rtot, [[3, 0, 0]], [1], Kav)
+    res12 = polyc(L0, KxStar, Rtot, [[3, 0, 5]], [1], Kav)
+    res21 = polyc(L0, KxStar, Rtot, [[0, 6, 0]], [1], Kav)
+    res22 = polyc(L0, KxStar, Rtot, [[0, 6, 3]], [1], Kav)
+    res31 = polyc(L0, KxStar, Rtot, [[2, 4, 0]], [1], Kav)
+    res32 = polyc(L0, KxStar, Rtot, [[2, 4, 5]], [1], Kav)
 
-        for i in range(2):
-            self.assertEqual(res11[i], res12[i])
-            self.assertEqual(res21[i], res22[i])
-            self.assertEqual(res31[i], res32[i])
+    for i in range(2):
+        assert res11[i] == res12[i]
+        assert res21[i] == res22[i]
+        assert res31[i] == res32[i]
 
-    def test_Lfbnd(self):
-        L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
-        KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
-        nl = 4
-        nr = np.random.randint(1, 10)
-        Rtot = np.floor(100.0 + np.random.rand(nr) * (10.0 ** np.random.randint(4, 6, size=nr)))
-        Kav = np.random.rand(nl, nr) * (10.0 ** np.random.randint(3, 7, size=(nl, nr)))
-        Cplx = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
-        Ctheta = np.random.rand(4)
-        Ctheta = Ctheta / sum(Ctheta)
+def test_Lfbnd():
+    L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
+    KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
+    nl = 4
+    nr = np.random.randint(1, 10)
+    Rtot = np.floor(100.0 + np.random.rand(nr) * (10.0 ** np.random.randint(4, 6, size=nr)))
+    Kav = np.random.rand(nl, nr) * (10.0 ** np.random.randint(3, 7, size=(nl, nr)))
+    Cplx = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+    Ctheta = np.random.rand(4)
+    Ctheta = Ctheta / sum(Ctheta)
 
-        res = polyc(L0, KxStar, Rtot, Cplx, Ctheta, Kav)
-        self.assertAlmostEqual(np.sum(res[0]), np.sum(res[2]))
-        for i in range(len(res[0])):
-            self.assertAlmostEqual(res[0][i], np.sum(res[1], axis=1)[i])
-
-
-if __name__ == "__main__":
-    unittest.main()
+    res = polyc(L0, KxStar, Rtot, Cplx, Ctheta, Kav)
+    np.testing.assert_almost_equal(np.sum(res[0]), np.sum(res[2]))
+    for i in range(len(res[0])):
+        np.testing.assert_almost_equal(res[0][i], np.sum(res[1], axis=1)[i])
