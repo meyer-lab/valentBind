@@ -1,11 +1,27 @@
 import numpy as np
 from valentbind import polyc, polyfc
-from matplotlib import pyplot as plt
+from matplotlib import gridspec, rcParams, pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.patches import Ellipse
-from .common import getSetup
+import seaborn as sns
+
+def getSetup(figsize, gridd):
+    """ Establish figure set-up with subplots. """
+    sns.set(style="whitegrid", font_scale=0.7, color_codes=True, palette="colorblind", rc={"grid.linestyle": "dotted", "axes.linewidth": 0.6})
+
+    # Setup plotting space and grid
+    f = plt.figure(figsize=figsize, constrained_layout=True)
+    gs1 = gridspec.GridSpec(*gridd, figure=f)
+
+    # Get list of axis objects
+    ax = list()
+    for x in range(gridd[0] * gridd[1]):
+        ax.append(f.add_subplot(gs1[x]))
+
+    return (ax, f)
 
 hfont = {'fontname': 'Helvetica', 'size': 22}
+rcParams['pcolor.shading'] = 'auto'
 
 def heatmap(ax, L0, KxStar, Kav, Comp, Cplx, vrange=(-2, 4), title="", mode=0, overlay=True):
     nAbdPts = 70
@@ -68,7 +84,7 @@ def sample_cell(x, y, size=100):
 
 
 
-ax, f = getSetup((8, 3.5), (1, 2))
+ax, f = getSetup((8, 4), (1, 2))
 
 
 L0 = 1e-9
@@ -78,5 +94,8 @@ Kav = np.array([[1e8, 1e5, 6e5], [3e5, 1e7, 1e6]])
 
 heatmap(ax[0], L0, KxStar, Kav, [1.0], Cplx, mode=0, title="[2,0]", vrange=(2, 8))
 heatmap(ax[1], L0, KxStar, Kav, [1.0], Cplx, mode=1, title="[2,0]", vrange=(-4, 2))
+
+ax[0].text(-0.2, 1.25, "a", transform=ax[0].transAxes, fontsize=16, fontweight="bold", va="top")
+ax[1].text(-0.2, 1.25, "b", transform=ax[1].transAxes, fontsize=16, fontweight="bold", va="top")
 
 f.savefig('figure4.pdf', dpi=f.dpi*2)
