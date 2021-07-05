@@ -21,74 +21,51 @@ def getSetup(figsize, gridd):
 
     return (ax, f)
 
+
+def mixtureDF(L0, KxStar, Cplx, Kav, Rtot, Ctheta, N=100, Lbound=True):
+    """ Default Cplx[0] and Cplx[1] mixture analysis """
+
+    C01tot = Ctheta[0] + Ctheta[1]
+    r = np.arange(0, C01tot + 1e-6, step=1 / N)
+
+    def mod(rr, single=None, Lbound=True, Rtotlvl=1.0):
+        if single == 0:
+            Cth01 = np.array([rr, 0])
+        elif single == 1:
+            Cth01 = np.array([0, C01tot-rr])
+        else:
+            Cth01 = np.array([rr, C01tot-rr])
+        Cth = np.hstack([Cth01, Ctheta[2:]])
+        res = polyc(L0 * np.sum(Cth), KxStar, Rtot*Rtotlvl, Cplx, Cth, Kav)
+        return sum(res[0] if Lbound else res[1][:, 2])  # R3 bound
+
+    def caseDF(single):
+        return pd.DataFrame({
+            "x": r,
+            "y": [mod(rr, single, Lbound) for rr in r],
+            "ymin": [mod(rr, single, Lbound, 0.9) for rr in r],
+            "ymax": [mod(rr, single, Lbound, 1.11) for rr in r],
+            "Ligand": [("Single " + str(Cplx[single, :])) if single is not None else "Mixture"] * len(r)
+        })
+
+    df = pd.concat([caseDF(None), caseDF(0), caseDF(1)])
+    df = pd.melt(df, id_vars=['x', 'Ligand'])
+    return df
+
+
 def mixtureFig(ax, Lbound=True):
     L0 = 1e-9
     KxStar = 1e-12
     Cplx = np.array([[2, 0], [1, 1]])
     Kav = np.array([[1e8, 1e5, 6e5], [3e5, 1e7, 1e6]])
     Rtot = np.array([2.5e4, 3e4, 2e3])
-
-    N = 100
-    r = np.arange(0, 1.001, step=1/N)
-
-    def polymod1(r, Rtotx):
-        arr = np.zeros_like(r)
-        for i in range(len(arr)):
-            if Lbound:
-                arr[i] = sum(polyc(L0 * r[i], KxStar, Rtotx, Cplx[[0], :], [1.0], Kav)[0])
-            else:
-                arr[i] = sum(polyc(L0 * r[i], KxStar, Rtotx, Cplx[[0], :], [1.0], Kav)[1][:, 2])
-        return arr
-
-    def polymod2(r, Rtotx):
-        arr = np.zeros_like(r)
-        for i in range(len(arr)):
-            if Lbound:
-                arr[i] = sum(polyc(L0 * (1-r[i]), KxStar, Rtotx, Cplx[[1], :], [1.0], Kav)[0])
-            else:
-                arr[i] = sum(polyc(L0 * (1-r[i]), KxStar, Rtotx, Cplx[[1], :], [1.0], Kav)[1][:, 2])
-        return arr
-
-    def polymodm(r, Rtotx):
-        arr = np.zeros_like(r)
-        for i in range(len(arr)):
-            if Lbound:
-                arr[i] = sum(polyc(L0, KxStar, Rtotx, Cplx, [r[i], 1-r[i]], Kav)[0])
-            else:
-                arr[i] = sum(polyc(L0, KxStar, Rtotx, Cplx, [r[i], 1-r[i]], Kav)[1][:, 2])
-        return arr
-
-    singleOne = pd.DataFrame({
-        "x": r,
-        "y": polymod1(r, Rtot),
-        "ymin": polymod1(r, Rtot * 0.9),
-        "ymax": polymod1(r, Rtot / 0.9),
-        "Ligand": ["Single [2, 0]"] * len(r)
-    })
-
-
-    singleTwo = pd.DataFrame({
-        "x": r,
-        "y": polymod2(r, Rtot),
-        "ymin": polymod2(r, Rtot * 0.9),
-        "ymax": polymod2(r, Rtot / 0.9),
-        "Ligand": ["Single [1, 1]"] * len(r)
-    })
-
-    mixture = pd.DataFrame({
-        "x": r,
-        "y": polymodm(r, Rtot),
-        "ymin": polymodm(r, Rtot * 0.9),
-        "ymax": polymodm(r, Rtot / 0.9),
-        "Ligand": ["Mixture"] * len(r)
-    })
+    Ctheta = [1.0, 0]
 
     demodata = pd.DataFrame({"x": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
                          "y": [3.18e3, 4.2e3, 5.2e3, 5.3e3, 6.1e3, 5.97e3, 3.18e3, 5.5e3, 5.5e3, 6.3e3, 6.4e3, 5.97e3],
                          "Cases": ["a", "a", "a", "a", "a", "a", "b", "b", "b", "b", "b", "b"]})
 
-    df = pd.concat([mixture, singleOne, singleTwo])
-    df = pd.melt(df, id_vars=['x', 'Ligand'])
+    df = mixtureDF(L0, KxStar, Cplx, Kav, Rtot, Ctheta, Lbound=Lbound)
 
     sns.lineplot(data=df, x="x", y="value", hue="Ligand", ax=ax)
 
