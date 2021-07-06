@@ -30,7 +30,7 @@ def polyfc(L0, KxStar, f, Rtot, LigC, Kav):
     f: valency
     Rtot: numbers of each receptor appearing on the cell.
     LigC: the composition of the mixture used.
-    Kav: a matrix of Ka values. row = IgG's, col = FcgR's
+    Kav: a matrix of Ka values. row = ligands, col = receptors
     """
     # Data consistency check
     Kav = np.array(Kav)
@@ -70,7 +70,7 @@ def Req_Regression(L0, KxStar, f, Rtot, LigC, Kav):
     x0 = np.multiply(1.0 - np.divide(x0, 1 + x0), Rtot)
 
     # Solve Req by calling least_squares() and Req_func()
-    lsq = root(Req_func_jit, x0, jac=Req_func_J_jit, method="lm", args=(Rtot, L0fA, AKxStar, f), options={"maxiter": 3000})
+    lsq = root(Req_func_jit, x0, method="lm", args=(Rtot, L0fA, AKxStar, f), options={"maxiter": 100000, "ftol": 1e-14})
     assert lsq["success"], "Failure in rootfinding. " + str(lsq)
 
     return lsq["x"].reshape(1, -1)
@@ -119,7 +119,7 @@ def polyc(L0, KxStar, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Ka
     Ctheta = Ctheta / np.sum(Ctheta)
 
     # Solve Req
-    lsq = root(Req_func2_jit, Rtot, jac=Req_func2_J_jit, method="lm", args=(L0, KxStar, Rtot, Cplx, Ctheta, Kav), options={"maxiter": 3000})
+    lsq = root(Req_func2_jit, Rtot, method="lm", args=(L0, KxStar, Rtot, Cplx, Ctheta, Kav), options={"maxiter": 100000, "ftol": 1e-14})
     assert lsq["success"], "Failure in rootfinding. " + str(lsq)
     Req = lsq["x"].reshape(1, -1)
 
