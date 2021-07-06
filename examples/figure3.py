@@ -56,13 +56,14 @@ def mixtureDF(L0, KxStar, Cplx, Kav, Rtot, Ctheta, N=100, Lbound=True):
 def mixtureFig(ax, Lbound=True):
     L0 = 1e-9
     KxStar = 1e-12
-    Cplx = np.array([[2, 0], [1, 1]])
+    Cplx = np.array([[2, 0], [1, 1], [1, 0]])
     Kav = np.array([[1e8, 1e5, 6e5], [3e5, 1e7, 1e6]])
     Rtot = np.array([2.5e4, 3e4, 2e3])
-    Ctheta = [1.0, 0]
+    Ctheta = [0.8, 0, 0.2]
+    C01tot = Ctheta[0] + Ctheta[1]
 
-    demodata = pd.DataFrame({"x": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                         "y": [3.18e3, 4.2e3, 5.2e3, 5.3e3, 6.1e3, 5.97e3, 3.18e3, 5.5e3, 5.5e3, 6.3e3, 6.4e3, 5.97e3],
+    demodata = pd.DataFrame({"x": np.array([0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0]) * C01tot,
+                         "y": np.array([3.18e3, 4.2e3, 5.2e3, 5.3e3, 6.1e3, 5.97e3, 3.18e3, 5.5e3, 5.5e3, 6.3e3, 6.4e3, 5.97e3]) * 0.8 + 400,
                          "Cases": ["a", "a", "a", "a", "a", "a", "b", "b", "b", "b", "b", "b"]})
 
     df = mixtureDF(L0, KxStar, Cplx, Kav, Rtot, Ctheta, Lbound=Lbound)
@@ -73,21 +74,20 @@ def mixtureFig(ax, Lbound=True):
     if Lbound:
         ax.set_ylabel("Predicted ligand binding")
         ax.set_title("Predicted ligand binding")
-        sns.scatterplot(data=demodata, x="x", y="y", hue="Cases", style="Cases", ax=ax)
+        sns.scatterplot(data=demodata, x="x", y="y", hue="Cases", style="Cases", palette="bright", ax=ax)
     else:
         ax.set_ylabel("Predicted $R_3$ binding")
         ax.set_title("Predicted $R_3$ binding")
 
-    xs = np.arange(0, 1.01, 0.25)
+    xs = np.arange(0, C01tot+1e-5, C01tot/4)
     ax.set_xticks(xs)
-    ax.set_xticklabels(["[2 0] {}%\n[1 1] {}%".format(np.round(n*100), np.round(100-n*100)) for n in xs])
+    ax.set_xticklabels(["[2 0] {} nM\n[1 1] {} nM".format(np.round(n, decimals=2), np.round(C01tot-n, decimals=2)) for n in xs])
+    ax.set_ylim(0,)
 
 
-ax, f = getSetup((8, 4), (1, 2))
-mixtureFig(ax[0])
-mixtureFig(ax[1], False)
+ax, f = getSetup((12, 4), (1, 3))
+mixtureFig(ax[1])
+mixtureFig(ax[2], False)
+ax[0].axis("off")
 
-ax[0].text(-0.2, 1.25, "a", transform=ax[0].transAxes, fontsize=16, fontweight="bold", va="top")
-ax[1].text(-0.2, 1.25, "b", transform=ax[1].transAxes, fontsize=16, fontweight="bold", va="top")
-
-f.savefig('figure3.pdf', dpi=f.dpi*2)
+f.savefig('figure3.svg', dpi=f.dpi*2)
