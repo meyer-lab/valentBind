@@ -1,0 +1,82 @@
+begin parameters
+	L0		1e-9
+	kd11	1/1e8/L0
+	kd12	1/1e5/L0
+	kd13	1/6e5/L0
+	kd21	1/3e5/L0
+	kd22	1/1e7/L0
+	kd23	1/1e6/L0
+	KxStar	1e-12/L0
+end parameters
+
+begin molecule types
+	C1(a1,a2)
+	C2(a,b)
+	C3(a)
+	R1(r)
+	R2(r)
+	R3(r)
+end molecule types
+
+begin species
+	$C1(a1,a2)	0.4
+	$C2(a,b)	0.4
+	$C3(a)		0.2
+	R1(r)		2.5e4
+	R2(r)		3e4
+	R3(r)		2e3
+end species
+
+begin reaction rules
+	# C1, initial binding
+	C1(a1,a2) + R1(r) <-> C1(a1!1,a2).R1(r!1)	1, kd11
+	C1(a1,a2) + R2(r) <-> C1(a1!1,a2).R2(r!1)	1, kd12
+	C1(a1,a2) + R3(r) <-> C1(a1!1,a2).R3(r!1)	1, kd13
+	C1(a1,a2) + R1(r) <-> C1(a1,a2!1).R1(r!1)	1, kd11
+	C1(a1,a2) + R2(r) <-> C1(a1,a2!1).R2(r!1)	1, kd12
+	C1(a1,a2) + R3(r) <-> C1(a1,a2!1).R3(r!1)	1, kd13
+	
+	# C2, initial binding
+	C2(a,b) + R1(r) <-> C2(a!1,b).R1(r!1)	1, kd11
+	C2(a,b) + R1(r) <-> C2(a,b!1).R1(r!1)	1, kd21
+	C2(a,b) + R2(r) <-> C2(a!1,b).R2(r!1)	1, kd12
+	C2(a,b) + R2(r) <-> C2(a,b!1).R2(r!1)	1, kd22
+	C2(a,b) + R3(r) <-> C2(a!1,b).R3(r!1)	1, kd13
+	C2(a,b) + R3(r) <-> C2(a,b!1).R3(r!1)	1, kd23
+	
+	# C3, initial binding
+	C3(a) + R1(r) <-> C3(a!1).R1(r!1)	1, kd11
+	C3(a) + R2(r) <-> C3(a!1).R2(r!1)	1, kd12
+	C3(a) + R3(r) <-> C3(a!1).R3(r!1)	1, kd23
+	
+	# C1, secondary binding
+	C1(a1,a2!+) + R1(r) <-> C1(a1!1,a2!+).R1(r!1) KxStar, kd11
+	C1(a1,a2!+) + R2(r) <-> C1(a1!1,a2!+).R2(r!1) KxStar, kd12
+	C1(a1,a2!+) + R3(r) <-> C1(a1!1,a2!+).R3(r!1) KxStar, kd13
+	C1(a1!+,a2) + R1(r) <-> C1(a1!+,a2!1).R1(r!1) KxStar, kd11
+	C1(a1!+,a2) + R2(r) <-> C1(a1!+,a2!1).R2(r!1) KxStar, kd12
+	C1(a1!+,a2) + R3(r) <-> C1(a1!+,a2!1).R3(r!1) KxStar, kd13
+	
+	# C2, secondary binding
+	C2(a!+,b) + R1(r) <-> C2(a!+,b!1).R1(r!1) KxStar, kd21
+	C2(a!+,b) + R2(r) <-> C2(a!+,b!1).R2(r!1) KxStar, kd22
+	C2(a!+,b) + R3(r) <-> C2(a!+,b!1).R3(r!1) KxStar, kd23
+
+	C2(a,b!+) + R1(r) <-> C2(a!1,b!+).R1(r!1) KxStar, kd11
+	C2(a,b!+) + R2(r) <-> C2(a!1,b!+).R2(r!1) KxStar, kd12
+	C2(a,b!+) + R3(r) <-> C2(a!1,b!+).R3(r!1) KxStar, kd13
+	
+end reaction rules
+
+begin observables
+  	Molecules C1bnd C1(a1!+,a2) C1(a1,a2!+) C1(a1!+,a2!+)
+  	Molecules C2bnd C2(a!+,b) C2(a,b!+) C2(a!+,b!+)
+  	Molecules C3bnd C3(a!+)
+  	Molecules C1full C1(a1!+,a2!+)
+  	Molecules C2full C2(a!+,b!+)
+	Molecules R1eq R1(r)
+	Molecules R2eq R2(r)
+	Molecules R3eq R3(r)
+end observables
+
+simulate({method=>"ode", t_end=>1e2, n_steps=>1000})
