@@ -3,23 +3,14 @@ Implementation of a simple multivalent binding model.
 """
 
 import numpy as np
-import jax.numpy as jnp
-from jax import jit, jacfwd
-from jax.config import config
 from scipy.optimize import root
 from scipy.special import binom
-
-config.update("jax_enable_x64", True)
 
 
 def Req_func(Req, Rtot, L0fA, AKxStar, f):
     """ Mass balance. Transformation to account for bounds. """
-    Phisum = jnp.dot(AKxStar, Req.T)
+    Phisum = np.dot(AKxStar, Req.T)
     return Req + L0fA * Req * (1 + Phisum) ** (f - 1) - Rtot
-
-
-Req_func_jit = jit(Req_func)
-Req_func_J_jit = jit(jacfwd(Req_func, 0))
 
 
 def polyfc(L0, KxStar, f, Rtot, LigC, Kav):
@@ -70,7 +61,7 @@ def Req_Regression(L0, KxStar, f, Rtot, LigC, Kav):
     x0 = np.multiply(1.0 - np.divide(x0, 1 + x0), Rtot)
 
     # Solve Req by calling least_squares() and Req_func()
-    lsq = root(Req_func_jit, x0, method="lm", args=(Rtot, L0fA, AKxStar, f), options={"maxiter": 100000, "ftol": 1e-14})
+    lsq = root(Req_func, x0, method="lm", args=(Rtot, L0fA, AKxStar, f), options={"maxiter": 100000, "ftol": 1e-14})
     assert lsq["success"], "Failure in rootfinding. " + str(lsq)
 
     return lsq["x"].reshape(1, -1)
@@ -78,16 +69,12 @@ def Req_Regression(L0, KxStar, f, Rtot, LigC, Kav):
 
 def Req_func2(Req, L0, KxStar, Rtot, Cplx, Ctheta, Kav):
     Psi = Req * Kav * KxStar
-    Psi = jnp.pad(Psi, ((0, 0), (0, 1)), constant_values=1)
-    Psirs = jnp.sum(Psi, axis=1).reshape(-1, 1)
+    Psi = np.pad(Psi, ((0, 0), (0, 1)), constant_values=1)
+    Psirs = np.sum(Psi, axis=1).reshape(-1, 1)
     Psinorm = (Psi / Psirs)[:, :-1]
 
-    Rbound = L0 / KxStar * jnp.sum(Ctheta.reshape(-1, 1) * jnp.dot(Cplx, Psinorm) * jnp.exp(jnp.dot(Cplx, jnp.log1p(Psirs - 1))), axis=0)
+    Rbound = L0 / KxStar * np.sum(Ctheta.reshape(-1, 1) * np.dot(Cplx, Psinorm) * np.exp(np.dot(Cplx, np.log1p(Psirs - 1))), axis=0)
     return Req + Rbound - Rtot
-
-
-Req_func2_jit = jit(Req_func2)
-Req_func2_J_jit = jit(jacfwd(Req_func2, 0))
 
 
 def polyc(L0, KxStar, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Kav: np.ndarray):
@@ -119,7 +106,7 @@ def polyc(L0, KxStar, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Ka
     Ctheta = Ctheta / np.sum(Ctheta)
 
     # Solve Req
-    lsq = root(Req_func2_jit, Rtot, method="lm", args=(L0, KxStar, Rtot, Cplx, Ctheta, Kav), options={"maxiter": 100000, "ftol": 1e-14})
+    lsq = root(Req_func2, Rtot, method="lm", args=(L0, KxStar, Rtot, Cplx, Ctheta, Kav), options={"maxiter": 100000, "ftol": 1e-14})
     assert lsq["success"], "Failure in rootfinding. " + str(lsq)
     Req = lsq["x"].reshape(1, -1)
 
