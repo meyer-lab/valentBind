@@ -4,9 +4,9 @@ all: test
 
 venv: venv/bin/activate
 
-venv/bin/activate: requirements.txt
+venv/bin/activate:
 	test -d venv || virtualenv venv
-	. venv/bin/activate && pip install --prefer-binary -Uqr requirements.txt
+	. venv/bin/activate && pip install --user poetry
 	touch venv/bin/activate
 
 test: venv
