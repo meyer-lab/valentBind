@@ -50,7 +50,7 @@ jobs:
       - name: Run tests
         run: |
           source .venv/bin/activate
-          pytest --cov=valentbind --cov-report=xml --cov-config=.github/workflows/coveragerc
+          pytest tests/
           coverage report
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
