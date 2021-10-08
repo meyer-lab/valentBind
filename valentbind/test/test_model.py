@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.special import binom
-from valentbind import polyc, polyfc
+from ..model import polyc, polyfc
 
 
 def genPerm(len, sum):
