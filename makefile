@@ -2,18 +2,14 @@
 
 all: test
 
-venv: venv/bin/activate
+test:
+	poetry run pytest -s -v -x
 
-venv/bin/activate:
-	test -d venv || virtualenv venv
-	. venv/bin/activate && pip install --user poetry
-	touch venv/bin/activate
+coverage.xml:
+	poetry run pytest --junitxml=junit.xml --cov=valentbind --cov-report xml:coverage.xml
 
-test: venv
-	. venv/bin/activate && pytest -s -v -x
-
-coverage.xml: venv
-	. venv/bin/activate && pytest --junitxml=junit.xml --cov=valentbind --cov-report xml:coverage.xml
+mypy:
+	poetry run mypy --install-types --non-interactive --ignore-missing-imports valentbind
 
 clean:
-	rm -rf venv coverage.xml
+	rm -rf coverage.xml

@@ -8,6 +8,7 @@ authors = ["Aaron Meyer <ameyer@ucla.edu>"]
 python = ">=3.8,<3.10"
 numpy = "^1.20.3"
 scipy = "^1.7.0"
+mypy = "^0.910"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

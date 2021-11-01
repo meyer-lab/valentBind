@@ -13,7 +13,7 @@ def Req_func(Req, Rtot, L0fA, AKxStar, f):
     return Req + L0fA * Req * (1 + Phisum) ** (f - 1) - Rtot
 
 
-def polyfc(L0, KxStar, f, Rtot, LigC, Kav):
+def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
     """
     The main function. Generate all info for heterogenenous binding case
     L0: concentration of ligand complexes.
@@ -46,12 +46,11 @@ def polyfc(L0, KxStar, f, Rtot, LigC, Kav):
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
     Rbound = L0 / KxStar * f * Phisum * (1 + Phisum) ** (f - 1)
     vieq = L0 / KxStar * binom(f, np.arange(1, f + 1)) * np.power(Phisum, np.arange(1, f + 1))
-
     return Lbound, Rbound, vieq
 
 
-def Req_Regression(L0, KxStar, f, Rtot, LigC, Kav):
-    """Run least squares regression to calculate the Req vector"""
+def Req_Regression(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav: np.ndarray):
+    """ Run least squares regression to calculate the Req vector. """
     A = np.dot(LigC.T, Kav)
     L0fA = L0 * f * A
     AKxStar = A * KxStar
@@ -67,7 +66,7 @@ def Req_Regression(L0, KxStar, f, Rtot, LigC, Kav):
     return lsq["x"].reshape(1, -1)
 
 
-def Req_func2(Req, L0, KxStar, Rtot, Cplx, Ctheta, Kav):
+def Req_func2(Req, L0: float, KxStar, Rtot, Cplx, Ctheta, Kav):
     Psi = Req * Kav * KxStar
     Psi = np.pad(Psi, ((0, 0), (0, 1)), constant_values=1)
     Psirs = np.sum(Psi, axis=1).reshape(-1, 1)
@@ -77,7 +76,7 @@ def Req_func2(Req, L0, KxStar, Rtot, Cplx, Ctheta, Kav):
     return Req + Rbound - Rtot
 
 
-def polyc(L0, KxStar, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Kav: np.ndarray):
+def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Kav: np.ndarray):
     """
     The main function to be called for multivalent binding
     :param L0: concentration of ligand complexes
@@ -118,7 +117,8 @@ def polyc(L0, KxStar, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Ka
 
     Lbound = L0 / KxStar * Ctheta * np.expm1(np.dot(Cplx, np.log(Psirs))).flatten()
     Rbound = L0 / KxStar * Ctheta.reshape(-1, 1) * np.dot(Cplx, Psinorm) * np.exp(np.dot(Cplx, np.log(Psirs)))
-    Lfbnd = L0 / KxStar * Ctheta * np.exp(np.dot(Cplx, np.log(Psirs - 1.0))).flatten()
+    with np.errstate(divide='ignore'):
+        Lfbnd = L0 / KxStar * Ctheta * np.exp(np.dot(Cplx, np.log(Psirs - 1.0))).flatten()
     assert len(Lbound) == len(Ctheta)
     assert Rbound.shape[0] == len(Ctheta)
     assert Rbound.shape[1] == len(Rtot)
