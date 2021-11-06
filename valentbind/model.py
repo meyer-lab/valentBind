@@ -3,8 +3,12 @@ Implementation of a simple multivalent binding model.
 """
 
 import numpy as np
+from jax import custom_jvp
+from jax.config import config
 from scipy.optimize import root
 from scipy.special import binom
+
+config.update("jax_enable_x64", True)
 
 
 def Req_func(Req, Rtot, L0fA, AKxStar, f):
@@ -13,7 +17,7 @@ def Req_func(Req, Rtot, L0fA, AKxStar, f):
     return Req + L0fA * Req * (1 + Phisum) ** (f - 1) - Rtot
 
 
-def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
+def polyfc(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav: np.ndarray):
     """
     The main function. Generate all info for heterogenenous binding case
     L0: concentration of ligand complexes.
@@ -30,9 +34,7 @@ def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
     LigC = np.array(LigC)
     assert LigC.ndim <= 1
     LigC = LigC / np.sum(LigC)
-    assert LigC.size == Kav.shape[0]
-    assert Rtot.size == Kav.shape[1]
-    assert Kav.ndim == 2
+    assert Kav.shape == (LigC.size, Rtot.size)
 
     # Run least squares to get Req
     Req = Req_Regression(L0, KxStar, f, Rtot, LigC, Kav)
@@ -64,6 +66,41 @@ def Req_Regression(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarr
     assert lsq["success"], "Failure in rootfinding. " + str(lsq)
 
     return lsq["x"].reshape(1, -1)
+
+
+@custom_jvp
+def polyfcLbnd(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav: np.ndarray):
+    """
+    The main function. Generate all info for heterogenenous binding case
+    L0: concentration of ligand complexes.
+    KxStar: detailed balance-corrected Kx.
+    f: valency
+    Rtot: numbers of each receptor appearing on the cell.
+    LigC: the composition of the mixture used.
+    Kav: a matrix of Ka values. row = ligands, col = receptors
+    """
+    A = np.dot(LigC.T, Kav)
+    L0fA = L0 * f * A
+    AKxStar = A * KxStar
+
+    # Identify an initial guess just on max monovalent interaction
+    x0 = np.max(L0fA, axis=0)
+    x0 = np.multiply(1.0 - np.divide(x0, 1 + x0), Rtot)
+
+    # Solve Req by calling least_squares() and Req_func()
+    lsq = root(Req_func, x0, method="lm", args=(Rtot, L0fA, AKxStar, f), options={"maxiter": 100000, "ftol": 1e-14})
+    assert lsq["success"], "Failure in rootfinding. " + str(lsq)
+
+    Phisum = np.dot(AKxStar, lsq["x"])
+    Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
+    return Lbound
+
+
+@polyfcLbnd.defjvp
+def polyfcLbnd_jvp(primals, tangents):
+    primal_out = polyfcLbnd(*primals)
+    tangent_out = primal_out
+    return primal_out, tangent_out
 
 
 def Req_func2(Req, L0: float, KxStar, Rtot, Cplx, Ctheta, Kav):

@@ -1,6 +1,7 @@
 import numpy as np
+from jax import grad
 from scipy.special import binom
-from ..model import polyc, polyfc
+from ..model import polyc, polyfc, polyfcLbnd
 
 
 def genPerm(len, sum):
@@ -48,9 +49,28 @@ def test_equivalence():
     res20 = np.sum(res2[0])
     res21 = np.sum(res2[1])
 
-    assert abs(res[0] - res20) < res[0] * 1e-7
-    assert abs(res[1] - res21) < res[1] * 1e-7
-    assert abs(np.sum(res[2]) - res[0]) < res[1] * 1e-3
+    np.testing.assert_allclose(res[0], res20, atol=1e-7)
+    np.testing.assert_allclose(res[1], res21, atol=1e-7)
+    np.testing.assert_allclose(np.sum(res[2]), res[0], atol=1e-7)
+
+
+def test_grad():
+    L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
+    KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
+    f = np.random.randint(1, 10)
+    nl = np.random.randint(1, 10)
+    nr = np.random.randint(1, 10)
+    Rtot = np.floor(100.0 + np.random.rand(nr) * (10.0 ** np.random.randint(4, 6, size=nr)))
+    LigC = np.random.rand(nl) * (10.0 ** np.random.randint(1, 2, size=nl))
+    Kav = np.random.rand(nl, nr) * (10.0 ** np.random.randint(3, 7, size=(nl, nr)))
+
+    func = lambda x: polyfcLbnd(x, KxStar, f, Rtot, LigC, Kav)
+    gfunc = grad(func)
+
+    print(gfunc(L0))
+    # TODO: Test the gradient by differencing
+
+
 
 def test_null_monomer():
     # [3 0 0] should be equivalent to [3 0 5] if the last ligand has affinity 0

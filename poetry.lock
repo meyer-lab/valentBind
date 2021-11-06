@@ -1,4 +1,15 @@
 [[package]]
+name = "absl-py"
+version = "0.15.0"
+description = "Abseil Python Common Libraries, see https://github.com/abseil/abseil-py."
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+six = "*"
+
+[[package]]
 name = "atomicwrites"
 version = "1.4.0"
 description = "Atomic file writes."
@@ -27,6 +38,51 @@ description = "Cross-platform colored terminal text."
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
+name = "flatbuffers"
+version = "2.0"
+description = "The FlatBuffers serialization format for Python"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "jax"
+version = "0.2.24"
+description = "Differentiate, compile, and transform Numpy code."
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+absl-py = "*"
+numpy = ">=1.18"
+opt_einsum = "*"
+scipy = ">=1.2.1"
+typing_extensions = "*"
+
+[package.extras]
+cpu = ["jaxlib (==0.1.73)"]
+cuda = ["jaxlib (==0.1.73+cuda11.cudnn82)"]
+cuda11_cudnn805 = ["jaxlib (==0.1.73+cuda11.cudnn805)"]
+cuda11_cudnn82 = ["jaxlib (==0.1.73+cuda11.cudnn82)"]
+minimum-jaxlib = ["jaxlib (==0.1.69)"]
+tpu = ["jaxlib (==0.1.73)", "libtpu-nightly (==0.1.dev20211018)", "requests"]
+
+[[package]]
+name = "jaxlib"
+version = "0.1.73"
+description = "XLA library for JAX"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+absl-py = "*"
+flatbuffers = ">=1.12,<3.0"
+numpy = ">=1.18"
+scipy = "*"
 
 [[package]]
 name = "more-itertools"
@@ -68,6 +124,21 @@ description = "NumPy is the fundamental package for array computing with Python.
 category = "main"
 optional = false
 python-versions = ">=3.7,<3.11"
+
+[[package]]
+name = "opt-einsum"
+version = "3.3.0"
+description = "Optimizing numpys einsum function"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[package.dependencies]
+numpy = ">=1.7"
+
+[package.extras]
+docs = ["sphinx (==1.2.3)", "sphinxcontrib-napoleon", "sphinx-rtd-theme", "numpydoc"]
+tests = ["pytest", "pytest-cov", "pytest-pep8"]
 
 [[package]]
 name = "packaging"
@@ -141,6 +212,14 @@ python-versions = ">=3.7,<3.10"
 numpy = ">=1.16.5,<1.23.0"
 
 [[package]]
+name = "six"
+version = "1.16.0"
+description = "Python 2 and 3 compatibility utilities"
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
+
+[[package]]
 name = "toml"
 version = "0.10.2"
 description = "Python Library for Tom's Obvious, Minimal Language"
@@ -167,9 +246,13 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.10"
-content-hash = "18931e4ca9f452d6ee2f29c602f05c52aba86a0c61091e98463c386fe56e3104"
+content-hash = "f987d892411ae43a6aec99a53aaefd17c479c762ef363c7aaca019b90443aff5"
 
 [metadata.files]
+absl-py = [
+    {file = "absl-py-0.15.0.tar.gz", hash = "sha256:72d782fbeafba66ba3e525d46bccac949b9a174dbf66233e50ece09ee688dc81"},
+    {file = "absl_py-0.15.0-py3-none-any.whl", hash = "sha256:ea907384af023a7e681368bedb896159ab100c7db593efbbd5cde22af11270cd"},
+]
 atomicwrites = [
     {file = "atomicwrites-1.4.0-py2.py3-none-any.whl", hash = "sha256:6d1784dea7c0c8d4a5172b6c620f40b6e4cbfdf96d783691f2e1302a7b88e197"},
     {file = "atomicwrites-1.4.0.tar.gz", hash = "sha256:ae70396ad1a434f9c7046fd2dd196fc04b12f9e91ffb859164193be8b6168a7a"},
@@ -181,6 +264,22 @@ attrs = [
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
     {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
+]
+flatbuffers = [
+    {file = "flatbuffers-2.0-py2.py3-none-any.whl", hash = "sha256:3751954f0604580d3219ae49a85fafec9d85eec599c0b96226e1bc0b48e57474"},
+    {file = "flatbuffers-2.0.tar.gz", hash = "sha256:12158ab0272375eab8db2d663ae97370c33f152b27801fa6024e1d6105fd4dd2"},
+]
+jax = [
+    {file = "jax-0.2.24.tar.gz", hash = "sha256:ad09da2fad41121a4c0bbb15d548f4349dd0f1d6ef90fc3d7f62139c23a979bb"},
+]
+jaxlib = [
+    {file = "jaxlib-0.1.73-cp37-none-macosx_10_9_x86_64.whl", hash = "sha256:603c55d19373714cb63ffcca3c8e47274b3350cd54853b4477ab65a9e6b380b0"},
+    {file = "jaxlib-0.1.73-cp37-none-manylinux2010_x86_64.whl", hash = "sha256:f4a87bad78bb5e3b3ac9f926eab9107dfa42af53445da6b0aad3f6e8b473045c"},
+    {file = "jaxlib-0.1.73-cp38-none-macosx_10_9_x86_64.whl", hash = "sha256:b641fe676d45381d275caf763cab24caa3693e3ef12516f9454fbe1c8a825fff"},
+    {file = "jaxlib-0.1.73-cp38-none-manylinux2010_x86_64.whl", hash = "sha256:abed40752b3f628db4beb0d551fe572d70cac68fa4e5e5456f0ad3e50b8d8199"},
+    {file = "jaxlib-0.1.73-cp39-none-macosx_10_9_x86_64.whl", hash = "sha256:e9da681fdfd107e2b4e6a8d39e54e266cce5e98f7f4ff1ddb46b57d56be0d83d"},
+    {file = "jaxlib-0.1.73-cp39-none-macosx_11_0_arm64.whl", hash = "sha256:58317bf29cef080759edd1967bc3db273b4f845e06a3952d1e86facdb59ef745"},
+    {file = "jaxlib-0.1.73-cp39-none-manylinux2010_x86_64.whl", hash = "sha256:5ddffa1c72136967254913693b7e024b501320ac1a51848944f3fc5d5a91d075"},
 ]
 more-itertools = [
     {file = "more-itertools-8.10.0.tar.gz", hash = "sha256:1debcabeb1df793814859d64a81ad7cb10504c24349368ccf214c664c474f41f"},
@@ -250,6 +349,10 @@ numpy = [
     {file = "numpy-1.21.3-pp37-pypy37_pp73-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:98339aa9911853f131de11010f6dd94c8cec254d3d1f7261528c3b3e3219f139"},
     {file = "numpy-1.21.3.zip", hash = "sha256:63571bb7897a584ca3249c86dd01c10bcb5fe4296e3568b2e9c1a55356b6410e"},
 ]
+opt-einsum = [
+    {file = "opt_einsum-3.3.0-py3-none-any.whl", hash = "sha256:2455e59e3947d3c275477df7f5205b30635e266fe6dc300e3d9f9646bfcea147"},
+    {file = "opt_einsum-3.3.0.tar.gz", hash = "sha256:59f6475f77bbc37dcf7cd748519c0ec60722e91e63ca114e68821c0c54a46549"},
+]
 packaging = [
     {file = "packaging-21.2-py3-none-any.whl", hash = "sha256:14317396d1e8cdb122989b916fa2c7e9ca8e2be9e8060a6eff75b6b7b4d8a7e0"},
     {file = "packaging-21.2.tar.gz", hash = "sha256:096d689d78ca690e4cd8a89568ba06d07ca097e3306a4381635073ca91479966"},
@@ -290,6 +393,10 @@ scipy = [
     {file = "scipy-1.7.1-cp39-cp39-win32.whl", hash = "sha256:c9951e3746b68974125e5e3445008a4163dd6d20ae0bbdae22b38cb8951dc11b"},
     {file = "scipy-1.7.1-cp39-cp39-win_amd64.whl", hash = "sha256:da9c6b336e540def0b7fd65603da8abeb306c5fc9a5f4238665cbbb5ff95cf58"},
     {file = "scipy-1.7.1.tar.gz", hash = "sha256:6b47d5fa7ea651054362561a28b1ccc8da9368a39514c1bbf6c0977a1c376764"},
+]
+six = [
+    {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
+    {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
 ]
 toml = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
