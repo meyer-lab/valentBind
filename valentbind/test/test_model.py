@@ -48,8 +48,8 @@ def test_equivalence():
     res20 = np.sum(res2[0])
     res21 = np.sum(res2[1])
 
-    assert abs(res[0] - res20) < res[0] * 1e-7
-    assert abs(res[1] - res21) < res[1] * 1e-7
+    np.testing.assert_allclose(res[0], res20)
+    np.testing.assert_allclose(res[1], res21)
     assert abs(np.sum(res[2]) - res[0]) < res[1] * 1e-3
 
 def test_null_monomer():
@@ -83,6 +83,6 @@ def test_Lfbnd():
     Ctheta = Ctheta / sum(Ctheta)
 
     res = polyc(L0, KxStar, Rtot, Cplx, Ctheta, Kav)
-    np.testing.assert_almost_equal(np.sum(res[0]), np.sum(res[2]))
+    np.testing.assert_allclose(np.sum(res[0]), np.sum(res[2]))
     for i in range(len(res[0])):
-        np.testing.assert_almost_equal(res[0][i], np.sum(res[1], axis=1)[i])
+        np.testing.assert_allclose(res[0][i], np.sum(res[1], axis=1)[i])
