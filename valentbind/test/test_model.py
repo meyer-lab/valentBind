@@ -1,7 +1,7 @@
 import numpy as np
 from jax import grad
 from scipy.special import binom
-from ..model import polyc, polyfc, polyfcLbnd
+from ..model import polyc, polyfc
 
 
 def genPerm(len, sum):
@@ -64,7 +64,7 @@ def test_grad():
     LigC = np.random.rand(nl) * (10.0 ** np.random.randint(1, 2, size=nl))
     Kav = np.random.rand(nl, nr) * (10.0 ** np.random.randint(3, 7, size=(nl, nr)))
 
-    func = lambda x: polyfcLbnd(x, KxStar, f, Rtot, LigC, Kav)
+    func = lambda x: polyfc(x, KxStar, f, Rtot, LigC, Kav)[0]
     gfunc = grad(func)
 
     print(gfunc(L0))

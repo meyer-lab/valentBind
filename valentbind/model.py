@@ -5,6 +5,7 @@ Implementation of a simple multivalent binding model.
 import numpy as np
 from jax import custom_jvp
 from jax.config import config
+import jax.numpy as jnp
 from scipy.optimize import root
 from scipy.special import binom
 
@@ -33,25 +34,25 @@ def polyfc(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav:
     assert Rtot.ndim <= 1
     LigC = np.array(LigC)
     assert LigC.ndim <= 1
-    LigC = LigC / np.sum(LigC)
+    LigC = LigC / jnp.sum(LigC)
     assert Kav.shape == (LigC.size, Rtot.size)
 
     # Run least squares to get Req
     Req = Req_Regression(L0, KxStar, f, Rtot, LigC, Kav)
-
-    nr = Rtot.size  # the number of different receptors
-
-    Phi = np.ones((LigC.size, nr + 1)) * LigC.reshape(-1, 1)
-    Phi[:, :nr] *= Kav * Req * KxStar
-    Phisum = np.sum(Phi[:, :nr])
+    AKxStar = jnp.dot(LigC.T, Kav) * KxStar
+    Phisum = jnp.dot(AKxStar, Req.T)
 
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
     Rbound = L0 / KxStar * f * Phisum * (1 + Phisum) ** (f - 1)
-    vieq = L0 / KxStar * binom(f, np.arange(1, f + 1)) * np.power(Phisum, np.arange(1, f + 1))
-    return Lbound, Rbound, vieq
+
+    Phi = np.ones((LigC.size, Rtot.size + 1)) * LigC.reshape(-1, 1)
+    Phi = Phi.at[:, :Rtot.size].set(Phi[:, :Rtot.size] * Kav * Req * KxStar)
+    vieq = L0 / KxStar * binom(f, jnp.arange(1, f + 1)) * jnp.power(Phisum, np.arange(1, f + 1))
+    return jnp.squeeze(Lbound), Rbound, vieq
 
 
-def Req_Regression(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav: np.ndarray):
+@custom_jvp
+def Req_Regression(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav: np.ndarray, retLSQ = False):
     """ Run least squares regression to calculate the Req vector. """
     A = np.dot(LigC.T, Kav)
     L0fA = L0 * f * A
@@ -65,10 +66,23 @@ def Req_Regression(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarr
     lsq = root(Req_func, x0, method="lm", args=(Rtot, L0fA, AKxStar, f), options={"maxiter": 100000, "ftol": 1e-14})
     assert lsq["success"], "Failure in rootfinding. " + str(lsq)
 
+    if retLSQ:
+        return lsq
+
     return lsq["x"].reshape(1, -1)
 
 
-@custom_jvp
+@Req_Regression.defjvp
+def Req_Regression_jvp(primals, tangents):
+    lsq = Req_Regression(primals[0], primals[1], primals[2], primals[3], primals[4], primals[5], retLSQ=True)
+    print(lsq)
+    J = lsq["fjac"]
+    print(tangents)
+    primal_out = lsq["x"].reshape(1, -1)
+    tangent_out = jnp.zeros_like(primal_out)
+    return primal_out, tangent_out
+
+
 def polyfcLbnd(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav: np.ndarray):
     """
     The main function. Generate all info for heterogenenous binding case
@@ -96,11 +110,7 @@ def polyfcLbnd(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, 
     return Lbound
 
 
-@polyfcLbnd.defjvp
-def polyfcLbnd_jvp(primals, tangents):
-    primal_out = polyfcLbnd(*primals)
-    tangent_out = primal_out
-    return primal_out, tangent_out
+
 
 
 def Req_func2(Req, L0: float, KxStar, Rtot, Cplx, Ctheta, Kav):
