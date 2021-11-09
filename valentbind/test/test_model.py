@@ -45,12 +45,9 @@ def test_equivalence():
 
     res = polyfc(L0, KxStar, f, Rtot, LigC, Kav)
     res2 = polyfc2(L0, KxStar, f, Rtot, LigC, Kav)
-    res20 = np.sum(res2[0])
-    res21 = np.sum(res2[1])
 
-    assert abs(res[0] - res20) < res[0] * 1e-7
-    assert abs(res[1] - res21) < res[1] * 1e-7
-    assert abs(np.sum(res[2]) - res[0]) < res[1] * 1e-3
+    np.testing.assert_allclose(res[0], np.sum(res2[0]))
+    np.testing.assert_allclose(res[1], np.sum(res2[1]))
 
 def test_null_monomer():
     # [3 0 0] should be equivalent to [3 0 5] if the last ligand has affinity 0
@@ -83,6 +80,6 @@ def test_Lfbnd():
     Ctheta = Ctheta / sum(Ctheta)
 
     res = polyc(L0, KxStar, Rtot, Cplx, Ctheta, Kav)
-    np.testing.assert_almost_equal(np.sum(res[0]), np.sum(res[2]))
+    np.testing.assert_allclose(np.sum(res[0]), np.sum(res[2]))
     for i in range(len(res[0])):
-        np.testing.assert_almost_equal(res[0][i], np.sum(res[1], axis=1)[i])
+        np.testing.assert_allclose(res[0][i], np.sum(res[1], axis=1)[i])
