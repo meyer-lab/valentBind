@@ -3,7 +3,7 @@ Implementation of a simple multivalent binding model.
 """
 
 import numpy as np
-from scipy.optimize import root
+from scipy.optimize import least_squares
 from scipy.special import binom
 
 
@@ -18,9 +18,8 @@ def Req_func(Req, Rtot: np.ndarray, L0: float, KxStar: float, f, LigC: np.ndarra
 
 def Req_func2(Req, Rtot, L0: float, KxStar, Cplx, Ctheta, Kav):
     Psi = Req * Kav * KxStar
-    Psi = np.pad(Psi, ((0, 0), (0, 1)), constant_values=1)
-    Psirs = np.sum(Psi, axis=1).reshape(-1, 1)
-    Psinorm = (Psi / Psirs)[:, :-1]
+    Psirs = np.sum(Psi, axis=1).reshape(-1, 1) + 1
+    Psinorm = (Psi / Psirs)
 
     Rbound = L0 / KxStar * np.sum(Ctheta.reshape(-1, 1) * np.dot(Cplx, Psinorm) * np.exp(np.dot(Cplx, np.log1p(Psirs - 1))), axis=0)
     return Req + Rbound - Rtot
@@ -59,7 +58,7 @@ def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
     nr = Rtot.size  # the number of different receptors
 
     Phi = np.ones((LigC.size, nr + 1)) * LigC.reshape(-1, 1)
-    Phi[:, :nr] *= Kav * Req * KxStar
+    Phi[:, :nr] *= Kav * Req.T * KxStar
     Phisum = np.sum(Phi[:, :nr])
 
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
@@ -70,9 +69,10 @@ def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
 
 def Req_solve(func, Rtot, *args):
     """ Run least squares regression to calculate the Req vector. """
-    lsq = root(func, np.zeros_like(Rtot), args=(Rtot, *args))
-    assert lsq["success"], "Failure in rootfinding. " + str(lsq)
-    return lsq["x"].reshape(1, -1)
+    bounds = (np.full_like(Rtot, -1e-9), Rtot + 1e-9)
+    lsq = least_squares(func, np.zeros_like(Rtot), bounds=bounds, jac="cs", args=(Rtot, *args))
+    assert lsq.success, "Failure in rootfinding. " + str(lsq)
+    return lsq.x
 
 
 def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Kav: np.ndarray):
@@ -100,7 +100,7 @@ def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: 
 
     # Calculate the results
     Psi = np.ones((Kav.shape[0], Kav.shape[1] + 1))
-    Psi[:, : Kav.shape[1]] *= Req * Kav * KxStar
+    Psi[:, : Kav.shape[1]] *= Req.T * Kav * KxStar
     Psirs = np.sum(Psi, axis=1).reshape(-1, 1)
     Psinorm = (Psi / Psirs)[:, :-1]
 
