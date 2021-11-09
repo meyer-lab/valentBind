@@ -7,36 +7,10 @@ from scipy.optimize import root
 from scipy.special import binom
 
 
-def Req_func(Req, Rtot: np.ndarray, L0: float, KxStar: float, f, LigC: np.ndarray, Kav: np.ndarray):
+def Req_func(Req, Rtot, L0fA, AKxStar, f):
     """ Mass balance. Transformation to account for bounds. """
-    A = np.dot(LigC.T, Kav)
-    L0fA = L0 * f * A
-    AKxStar = A * KxStar
     Phisum = np.dot(AKxStar, Req.T)
     return Req + L0fA * Req * (1 + Phisum) ** (f - 1) - Rtot
-
-
-def Req_func2(Req, Rtot, L0: float, KxStar, Cplx, Ctheta, Kav):
-    Psi = Req * Kav * KxStar
-    Psi = np.pad(Psi, ((0, 0), (0, 1)), constant_values=1)
-    Psirs = np.sum(Psi, axis=1).reshape(-1, 1)
-    Psinorm = (Psi / Psirs)[:, :-1]
-
-    Rbound = L0 / KxStar * np.sum(Ctheta.reshape(-1, 1) * np.dot(Cplx, Psinorm) * np.exp(np.dot(Cplx, np.log1p(Psirs - 1))), axis=0)
-    return Req + Rbound - Rtot
-
-
-def commonChecks(L0, Rtot, KxStar, Kav, Ctheta):
-    """ Check that the inputs are sane. """
-    Kav = np.array(Kav, dtype=float)
-    Rtot = np.array(Rtot, dtype=float)
-    Ctheta = np.array(Ctheta, dtype=float)
-    assert Rtot.ndim <= 1
-    assert Rtot.size == Kav.shape[1]
-    assert Kav.ndim == 2
-    assert Ctheta.ndim <= 1
-    Ctheta = Ctheta / np.sum(Ctheta)
-    return L0, Rtot, KxStar, Kav, Ctheta
 
 
 def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
@@ -50,11 +24,18 @@ def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
     Kav: a matrix of Ka values. row = ligands, col = receptors
     """
     # Data consistency check
-    L0, Rtot, KxStar, Kav, LigC = commonChecks(L0, Rtot, KxStar, Kav, LigC)
+    Kav = np.array(Kav)
+    Rtot = np.array(Rtot, dtype=float)
+    assert Rtot.ndim <= 1
+    LigC = np.array(LigC)
+    assert LigC.ndim <= 1
+    LigC = LigC / np.sum(LigC)
     assert LigC.size == Kav.shape[0]
+    assert Rtot.size == Kav.shape[1]
+    assert Kav.ndim == 2
 
     # Run least squares to get Req
-    Req = Req_solve(Req_func, Rtot, L0, KxStar, f, LigC, Kav)
+    Req = Req_Regression(L0, KxStar, f, Rtot, LigC, Kav)
 
     nr = Rtot.size  # the number of different receptors
 
@@ -68,11 +49,31 @@ def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
     return Lbound, Rbound, vieq
 
 
-def Req_solve(func, Rtot, *args):
+def Req_Regression(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav: np.ndarray):
     """ Run least squares regression to calculate the Req vector. """
-    lsq = root(func, np.zeros_like(Rtot), args=(Rtot, *args))
+    A = np.dot(LigC.T, Kav)
+    L0fA = L0 * f * A
+    AKxStar = A * KxStar
+
+    # Identify an initial guess just on max monovalent interaction
+    x0 = np.max(L0fA, axis=0)
+    x0 = np.multiply(1.0 - np.divide(x0, 1 + x0), Rtot)
+
+    # Solve Req by calling least_squares() and Req_func()
+    lsq = root(Req_func, x0, method="lm", args=(Rtot, L0fA, AKxStar, f), options={"maxiter": 100000, "ftol": 1e-14})
     assert lsq["success"], "Failure in rootfinding. " + str(lsq)
+
     return lsq["x"].reshape(1, -1)
+
+
+def Req_func2(Req, L0: float, KxStar, Rtot, Cplx, Ctheta, Kav):
+    Psi = Req * Kav * KxStar
+    Psi = np.pad(Psi, ((0, 0), (0, 1)), constant_values=1)
+    Psirs = np.sum(Psi, axis=1).reshape(-1, 1)
+    Psinorm = (Psi / Psirs)[:, :-1]
+
+    Rbound = L0 / KxStar * np.sum(Ctheta.reshape(-1, 1) * np.dot(Cplx, Psinorm) * np.exp(np.dot(Cplx, np.log1p(Psirs - 1))), axis=0)
+    return Req + Rbound - Rtot
 
 
 def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Kav: np.ndarray):
@@ -89,14 +90,24 @@ def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: 
         Rbound: a list of Rbound of each kind of receptor
     """
     # Consistency check
-    L0, Rtot, KxStar, Kav, Ctheta = commonChecks(L0, Rtot, KxStar, Kav, Ctheta)
+    Kav = np.array(Kav)
+    assert Kav.ndim == 2
+    Rtot = np.array(Rtot, dtype=float)
+    assert Rtot.ndim == 1
     Cplx = np.array(Cplx)
     assert Cplx.ndim == 2
+    Ctheta = np.array(Ctheta)
+    assert Ctheta.ndim == 1
+
     assert Kav.shape[0] == Cplx.shape[1]
+    assert Kav.shape[1] == Rtot.size
     assert Cplx.shape[0] == Ctheta.size
+    Ctheta = Ctheta / np.sum(Ctheta)
 
     # Solve Req
-    Req = Req_solve(Req_func2, Rtot, L0, KxStar, Cplx, Ctheta, Kav)
+    lsq = root(Req_func2, Rtot, method="lm", args=(L0, KxStar, Rtot, Cplx, Ctheta, Kav), options={"maxiter": 100000, "ftol": 1e-14})
+    assert lsq["success"], "Failure in rootfinding. " + str(lsq)
+    Req = lsq["x"].reshape(1, -1)
 
     # Calculate the results
     Psi = np.ones((Kav.shape[0], Kav.shape[1] + 1))
