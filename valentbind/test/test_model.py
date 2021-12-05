@@ -37,7 +37,7 @@ def test_grad():
     """ Test the gradient of Lbnd w.r.t. Rtot. """
     L0 = 1.0e-9
     KxStar = 1.0e-12
-    f = 4.0
+    f = 8
     nl = np.random.randint(1, 10)
     nr = np.random.randint(1, 10)
     Rtot = np.floor(100.0 + np.random.rand(nr) * (10.0 ** np.random.randint(4, 6, size=nr)))

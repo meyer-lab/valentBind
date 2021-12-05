@@ -59,11 +59,8 @@ def polyfc(L0, KxStar, f, Rtot, LigC, Kav):
     # Run least squares to get Req
     Req = Req_solve(Req_func, Rtot, L0, KxStar, f, LigC, Kav)
 
-    nr = Rtot.size  # the number of different receptors
-
-    Phi = jnp.ones((LigC.size, nr + 1)) * LigC.reshape(-1, 1)
-    Phi = Phi.at[:, :nr].set(Phi[:, :nr] * Kav * Req.T * KxStar)
-    Phisum = jnp.sum(Phi[:, :nr])
+    Phi = LigC.reshape(-1, 1) * Kav * Req.T * KxStar
+    Phisum = jnp.sum(Phi)
 
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
     Rbound = L0 / KxStar * f * Phisum * (1 + Phisum) ** (f - 1)
