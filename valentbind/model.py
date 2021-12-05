@@ -3,25 +3,29 @@ Implementation of a simple multivalent binding model.
 """
 
 import numpy as np
-from scipy.optimize import least_squares
+import jax.numpy as jnp
+from jaxopt import ScipyRootFinding
+from jax.config import config
 from scipy.special import binom
+
+config.update("jax_enable_x64", True)
 
 
 def Req_func(Req, Rtot: np.ndarray, L0: float, KxStar: float, f, LigC: np.ndarray, Kav: np.ndarray):
     """ Mass balance. Transformation to account for bounds. """
-    A = np.dot(LigC.T, Kav)
+    A = jnp.dot(LigC.T, Kav)
     L0fA = L0 * f * A
     AKxStar = A * KxStar
-    Phisum = np.dot(AKxStar, Req.T)
+    Phisum = jnp.dot(AKxStar, Req.T)
     return Req + L0fA * Req * (1 + Phisum) ** (f - 1) - Rtot
 
 
 def Req_func2(Req, Rtot, L0: float, KxStar, Cplx, Ctheta, Kav):
     Psi = Req * Kav * KxStar
-    Psirs = np.sum(Psi, axis=1).reshape(-1, 1) + 1
+    Psirs = jnp.sum(Psi, axis=1).reshape(-1, 1) + 1
     Psinorm = (Psi / Psirs)
 
-    Rbound = L0 / KxStar * np.sum(Ctheta.reshape(-1, 1) * np.dot(Cplx, Psinorm) * np.exp(np.dot(Cplx, np.log1p(Psirs - 1))), axis=0)
+    Rbound = L0 / KxStar * jnp.sum(Ctheta.reshape(-1, 1) * jnp.dot(Cplx, Psinorm) * jnp.exp(jnp.dot(Cplx, jnp.log1p(Psirs - 1))), axis=0)
     return Req + Rbound - Rtot
 
 
@@ -69,10 +73,10 @@ def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
 
 def Req_solve(func, Rtot, *args):
     """ Run least squares regression to calculate the Req vector. """
-    bounds = (np.full_like(Rtot, -1e-9), Rtot + 1e-9)
-    lsq = least_squares(func, np.zeros_like(Rtot), bounds=bounds, jac="cs", args=(Rtot, *args))
-    assert lsq.success, "Failure in rootfinding. " + str(lsq)
-    return lsq.x
+    lsq = ScipyRootFinding(method="lm", optimality_fun=func)
+    lsq = lsq.run(np.zeros_like(Rtot), Rtot, *args)
+    assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
+    return lsq.params
 
 
 def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Kav: np.ndarray):
