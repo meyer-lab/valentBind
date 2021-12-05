@@ -31,18 +31,18 @@ def Req_func2(Req, Rtot, L0: float, KxStar, Cplx, Ctheta, Kav):
 
 def commonChecks(L0, Rtot, KxStar, Kav, Ctheta):
     """ Check that the inputs are sane. """
-    Kav = np.array(Kav, dtype=float)
-    Rtot = np.array(Rtot, dtype=float)
-    Ctheta = np.array(Ctheta, dtype=float)
+    Kav = jnp.array(Kav, dtype=float)
+    Rtot = jnp.array(Rtot, dtype=float)
+    Ctheta = jnp.array(Ctheta, dtype=float)
     assert Rtot.ndim <= 1
     assert Rtot.size == Kav.shape[1]
     assert Kav.ndim == 2
     assert Ctheta.ndim <= 1
-    Ctheta = Ctheta / np.sum(Ctheta)
+    Ctheta = Ctheta / jnp.sum(Ctheta)
     return L0, Rtot, KxStar, Kav, Ctheta
 
 
-def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
+def polyfc(L0, KxStar, f, Rtot, LigC, Kav):
     """
     The main function. Generate all info for heterogenenous binding case
     L0: concentration of ligand complexes.
@@ -61,20 +61,20 @@ def polyfc(L0: float, KxStar, f, Rtot, LigC, Kav):
 
     nr = Rtot.size  # the number of different receptors
 
-    Phi = np.ones((LigC.size, nr + 1)) * LigC.reshape(-1, 1)
-    Phi[:, :nr] *= Kav * Req.T * KxStar
-    Phisum = np.sum(Phi[:, :nr])
+    Phi = jnp.ones((LigC.size, nr + 1)) * LigC.reshape(-1, 1)
+    Phi = Phi.at[:, :nr].set(Phi[:, :nr] * Kav * Req.T * KxStar)
+    Phisum = jnp.sum(Phi[:, :nr])
 
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
     Rbound = L0 / KxStar * f * Phisum * (1 + Phisum) ** (f - 1)
-    vieq = L0 / KxStar * binom(f, np.arange(1, f + 1)) * np.power(Phisum, np.arange(1, f + 1))
+    vieq = L0 / KxStar * binom(f, np.arange(1, f + 1)) * jnp.power(Phisum, np.arange(1, f + 1))
     return Lbound, Rbound, vieq
 
 
 def Req_solve(func, Rtot, *args):
     """ Run least squares regression to calculate the Req vector. """
-    lsq = ScipyRootFinding(method="lm", optimality_fun=func)
-    lsq = lsq.run(np.zeros_like(Rtot), Rtot, *args)
+    lsq = ScipyRootFinding(method="lm", optimality_fun=func, tol=1e-10)
+    lsq = lsq.run(jnp.zeros_like(Rtot), Rtot, *args)
     assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
     return lsq.params
 
