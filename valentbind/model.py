@@ -29,7 +29,7 @@ def Req_func2(Req, Rtot, L0: float, KxStar, Cplx, Ctheta, Kav):
     return Req + Rbound - Rtot
 
 
-def commonChecks(L0, Rtot, KxStar, Kav, Ctheta):
+def commonChecks(L0: float, Rtot: np.ndarray, KxStar: float, Kav: np.ndarray, Ctheta: np.ndarray):
     """ Check that the inputs are sane. """
     Kav = jnp.array(Kav, dtype=float)
     Rtot = jnp.array(Rtot, dtype=float)
@@ -42,7 +42,7 @@ def commonChecks(L0, Rtot, KxStar, Kav, Ctheta):
     return L0, Rtot, KxStar, Kav, Ctheta
 
 
-def polyfc(L0, KxStar, f, Rtot, LigC, Kav):
+def polyfc(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav: np.ndarray):
     """
     The main function. Generate all info for heterogenenous binding case
     L0: concentration of ligand complexes.
