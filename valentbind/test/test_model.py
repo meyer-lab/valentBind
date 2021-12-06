@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.special import binom
+from jax import jacrev, jacfwd
 from ..model import polyc, polyfc
 
 
@@ -17,7 +18,6 @@ def multinomial(params):
         return 1
     return binom(sum(params), params[-1]) * multinomial(params[:-1])
 
-
 def polyfc2(L0, KxStar, f, Rtot, LigC, Kav):
     """ This function should give the same result as polyfc() but less efficient.
     This function is used for testing only. Use polyfc() for random complexes calculation"""
@@ -31,6 +31,24 @@ def polyfc2(L0, KxStar, f, Rtot, LigC, Kav):
     assert abs(sum(Ctheta) - 1.0) < 1e-12
 
     return polyc(L0, KxStar, Rtot, Cplx, Ctheta, Kav)
+
+
+def test_grad():
+    """ Test the gradient of Lbnd w.r.t. Rtot. """
+    L0 = 1.0e-9
+    KxStar = 1.0e-12
+    f = 8
+    nl = np.random.randint(1, 10)
+    nr = np.random.randint(1, 10)
+    Rtot = np.floor(100.0 + np.random.rand(nr) * (10.0 ** np.random.randint(4, 6, size=nr)))
+    LigC = np.random.rand(nl) * (10.0 ** np.random.randint(1, 2, size=nl))
+    Kav = np.random.rand(nl, nr) * (10.0 ** np.random.randint(3, 7, size=(nl, nr)))
+
+    func = lambda x: polyfc(L0, KxStar, f, x, LigC, Kav)[0]
+    gfunc = jacrev(func, 0)
+    outt = gfunc(Rtot)
+    assert np.all(outt > 0.0)
+    assert outt.shape == Rtot.shape
 
 
 def test_equivalence():
