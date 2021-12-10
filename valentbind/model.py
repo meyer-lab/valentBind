@@ -11,13 +11,10 @@ from scipy.special import binom
 config.update("jax_enable_x64", True)
 
 
-def Req_func(Req, Rtot: np.ndarray, L0: float, KxStar: float, f, LigC: np.ndarray, Kav: np.ndarray):
+def Req_func(Phisum: float, Rtot: np.ndarray, L0: float, KxStar: float, f, A: np.ndarray):
     """ Mass balance. Transformation to account for bounds. """
-    A = jnp.dot(LigC.T, Kav)
-    L0fA = L0 * f * A
-    AKxStar = A * KxStar
-    Phisum = jnp.dot(AKxStar, Req.T)
-    return Req + L0fA * Req * (1 + Phisum) ** (f - 1) - Rtot
+    Req = Rtot / (1.0 + L0 * f * A * (1 + Phisum) ** (f - 1))
+    return Phisum - jnp.dot(A * KxStar, Req.T)
 
 
 def Req_func2(Req, Rtot, L0: float, KxStar, Cplx, Ctheta, Kav):
@@ -56,11 +53,13 @@ def polyfc(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav:
     L0, Rtot, KxStar, Kav, LigC = commonChecks(L0, Rtot, KxStar, Kav, LigC)
     assert LigC.size == Kav.shape[0]
 
-    # Run least squares to get Req
-    Req = Req_solve(Req_func, Rtot, L0, KxStar, f, LigC, Kav)
+    A = jnp.dot(LigC.T, Kav)
 
-    Phi = LigC.reshape(-1, 1) * Kav * Req.T * KxStar
-    Phisum = jnp.sum(Phi)
+    # Find Phisum by fixed point iteration
+    lsq = ScipyRootFinding(method="lm", optimality_fun=Req_func, tol=1e-12)
+    lsq = lsq.run(jnp.zeros(1), Rtot, L0, KxStar, f, A)
+    assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
+    Phisum = lsq.params[0]
 
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
     Rbound = L0 / KxStar * f * Phisum * (1 + Phisum) ** (f - 1)
