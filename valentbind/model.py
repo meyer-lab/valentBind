@@ -4,7 +4,7 @@ Implementation of a simple multivalent binding model.
 
 import numpy as np
 import jax.numpy as jnp
-from jaxopt import ScipyRootFinding
+from jaxopt import ScipyRootFinding, Bisection, FixedPointIteration
 from jax.config import config
 from scipy.special import binom
 
@@ -56,23 +56,19 @@ def polyfc(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav:
     A = jnp.dot(LigC.T, Kav)
 
     # Find Phisum by fixed point iteration
-    lsq = ScipyRootFinding(method="lm", optimality_fun=Req_func, tol=1e-12)
+    lsq = FixedPointIteration(fixed_point_fun=Req_func, tol=1e-12)
     lsq = lsq.run(jnp.zeros(1), Rtot, L0, KxStar, f, A)
-    assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
+    if lsq.state.error > 1e-9:
+        lsq = ScipyRootFinding(method="lm", optimality_fun=Req_func, tol=1e-12)
+        lsq = lsq.run(jnp.zeros(1), Rtot, L0, KxStar, f, A)
+        assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
+
     Phisum = lsq.params[0]
 
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
     Rbound = L0 / KxStar * f * Phisum * (1 + Phisum) ** (f - 1)
     vieq = L0 / KxStar * binom(f, np.arange(1, f + 1)) * jnp.power(Phisum, np.arange(1, f + 1))
     return Lbound, Rbound, vieq
-
-
-def Req_solve(func, Rtot, *args):
-    """ Run least squares regression to calculate the Req vector. """
-    lsq = ScipyRootFinding(method="lm", optimality_fun=func, tol=1e-10)
-    lsq = lsq.run(jnp.zeros_like(Rtot), Rtot, *args)
-    assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
-    return lsq.params
 
 
 def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Kav: np.ndarray):
@@ -95,8 +91,20 @@ def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: 
     assert Kav.shape[0] == Cplx.shape[1]
     assert Cplx.shape[0] == Ctheta.size
 
+    # Get an estimate of Req from polyfc
+    LigC = Ctheta @ Cplx # Convert to LigC
+    f_fc = np.amax(np.sum(Cplx, axis=1)) # Find the maximum valency among complexes
+    Rbnd_fc = polyfc(L0, KxStar, f_fc, Rtot, LigC, Kav)[1]
+    Req_fc = Rtot - Rbnd_fc
+    Req_fc = np.clip(Req_fc, 0.0, Rtot)
+    assert np.all(Req_fc >= 0.0)
+
     # Solve Req
-    Req = Req_solve(Req_func2, Rtot, L0, KxStar, Cplx, Ctheta, Kav)
+    lsq = ScipyRootFinding(method="lm", optimality_fun=Req_func2, tol=1e-10)
+    lsq = lsq.run(Req_fc, Rtot, L0, KxStar, Cplx, Ctheta, Kav)
+    assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
+    Req = lsq.params
+    assert np.all(np.isfinite(Req))
 
     # Calculate the results
     Psi = np.ones((Kav.shape[0], Kav.shape[1] + 1))

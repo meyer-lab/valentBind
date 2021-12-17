@@ -64,6 +64,10 @@ def test_equivalence():
     res = polyfc(L0, KxStar, f, Rtot, LigC, Kav)
     res2 = polyfc2(L0, KxStar, f, Rtot, LigC, Kav)
 
+    assert np.all(res[0] >= 0.0)
+    assert np.all(res[1] >= 0.0)
+    assert np.all(res[2] >= 0.0)
+
     np.testing.assert_allclose(res[0], np.sum(res2[0]))
     np.testing.assert_allclose(res[1], np.sum(res2[1]))
 
