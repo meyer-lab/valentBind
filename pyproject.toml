@@ -5,15 +5,15 @@ description = "The multivalent binding model implemented in Python."
 authors = ["Aaron Meyer <ameyer@ucla.edu>"]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.10"
+python = ">=3.8,<3.11"
 numpy = "^1.20"
-scipy = "^1.7"
+scipy = "^1.8"
 jax = "^0.2.25"
 jaxlib = "^0.1.74"
-jaxopt = "^0.1.1"
+jaxopt = "^0.3.1"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
+pytest = "^6.2"
 mypy = "^0.910"
 
 [build-system]
