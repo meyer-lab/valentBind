@@ -7,20 +7,16 @@ import jax.numpy as jnp
 from jaxopt import ScipyRootFinding
 from jax.config import config
 from scipy.special import binom
-from numba import jit
-
 
 config.update("jax_enable_x64", True)
 
 
-@jit(forceobj=True, parallel=True)
 def Req_func(Phisum: float, Rtot: np.ndarray, L0: float, KxStar: float, f, A: np.ndarray):
     """ Mass balance. Transformation to account for bounds. """
     Req = Rtot / (1.0 + L0 * f * A * (1 + Phisum) ** (f - 1))
     return Phisum - jnp.dot(A * KxStar, Req.T)
 
 
-@jit(forceobj=True, parallel=True)
 def Req_func2(Req, Rtot, L0: float, KxStar, Cplx, Ctheta, Kav):
     Psi = Req * Kav * KxStar
     Psirs = jnp.sum(Psi, axis=1).reshape(-1, 1) + 1
@@ -71,7 +67,6 @@ def polyfc(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav:
     return Lbound, Rbound, vieq
 
 
-@jit(forceobj=True, parallel=True)
 def Req_solve(func, Rtot, *args):
     """ Run least squares regression to calculate the Req vector. """
     lsq = ScipyRootFinding(method="lm", optimality_fun=func, tol=1e-10)
