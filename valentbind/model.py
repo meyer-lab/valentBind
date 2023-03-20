@@ -11,13 +11,13 @@ from scipy.special import binom
 config.update("jax_enable_x64", True)
 
 
-def Req_func(Phisum: float, Rtot: np.ndarray, L0: float, KxStar: float, f, A: np.ndarray):
+def Req_polyfc(Phisum: float, Rtot: np.ndarray, L0: float, KxStar: float, f, A: np.ndarray):
     """ Mass balance. Transformation to account for bounds. """
     Req = Rtot / (1.0 + L0 * f * A * (1 + Phisum) ** (f - 1))
     return Phisum - jnp.dot(A * KxStar, Req.T)
 
 
-def Req_func2(Req, Rtot, L0: float, KxStar, Cplx, Ctheta, Kav):
+def Req_polyc(Req, Rtot, L0: float, KxStar, Cplx, Ctheta, Kav):
     Psi = Req * Kav * KxStar
     Psirs = jnp.sum(Psi, axis=1).reshape(-1, 1) + 1
     Psinorm = (Psi / Psirs)
@@ -56,7 +56,7 @@ def polyfc(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav:
     A = jnp.dot(LigC.T, Kav)
 
     # Find Phisum by fixed point iteration
-    lsq = ScipyRootFinding(method="lm", optimality_fun=Req_func, tol=1e-12)
+    lsq = ScipyRootFinding(method="lm", optimality_fun=Req_polyfc, tol=1e-12)
     lsq = lsq.run(jnp.zeros(1), Rtot, L0, KxStar, f, A)
     assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
     Phisum = lsq.params[0]
@@ -90,24 +90,24 @@ def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: 
     """
     # Consistency check
     L0, Rtot, KxStar, Kav, Ctheta = commonChecks(L0, Rtot, KxStar, Kav, Ctheta)
-    Cplx = np.array(Cplx)
+    Cplx = jnp.array(Cplx)
     assert Cplx.ndim == 2
     assert Kav.shape[0] == Cplx.shape[1]
     assert Cplx.shape[0] == Ctheta.size
 
     # Solve Req
-    Req = Req_solve(Req_func2, Rtot, L0, KxStar, Cplx, Ctheta, Kav)
+    Req = Req_solve(Req_polyc, Rtot, L0, KxStar, Cplx, Ctheta, Kav)
 
     # Calculate the results
-    Psi = np.ones((Kav.shape[0], Kav.shape[1] + 1))
-    Psi[:, : Kav.shape[1]] *= Req.T * Kav * KxStar
-    Psirs = np.sum(Psi, axis=1).reshape(-1, 1)
+    Psi = Req.T * Kav * KxStar
+    Psi = jnp.concatenate((Psi, jnp.ones((Kav.shape[0], 1))), axis=1)
+    Psirs = jnp.sum(Psi, axis=1).reshape(-1, 1)
     Psinorm = (Psi / Psirs)[:, :-1]
 
-    Lbound = L0 / KxStar * Ctheta * np.expm1(np.dot(Cplx, np.log(Psirs))).flatten()
-    Rbound = L0 / KxStar * Ctheta.reshape(-1, 1) * np.dot(Cplx, Psinorm) * np.exp(np.dot(Cplx, np.log(Psirs)))
+    Lbound = L0 / KxStar * Ctheta * jnp.expm1(jnp.dot(Cplx, jnp.log(Psirs))).flatten()
+    Rbound = L0 / KxStar * Ctheta.reshape(-1, 1) * jnp.dot(Cplx, Psinorm) * jnp.exp(jnp.dot(Cplx, jnp.log(Psirs)))
     with np.errstate(divide='ignore'):
-        Lfbnd = L0 / KxStar * Ctheta * np.exp(np.dot(Cplx, np.log(Psirs - 1.0))).flatten()
+        Lfbnd = L0 / KxStar * Ctheta * jnp.exp(jnp.dot(Cplx, jnp.log(Psirs - 1.0))).flatten()
     assert len(Lbound) == len(Ctheta)
     assert Rbound.shape[0] == len(Ctheta)
     assert Rbound.shape[1] == len(Rtot)
