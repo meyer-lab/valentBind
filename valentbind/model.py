@@ -61,10 +61,16 @@ def polyfc(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav:
     assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
     Phisum = lsq.params[0]
 
+
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
     Rbound = L0 / KxStar * f * Phisum * (1 + Phisum) ** (f - 1)
     vieq = L0 / KxStar * binom(f, np.arange(1, f + 1)) * jnp.power(Phisum, np.arange(1, f + 1))
-    return Lbound, Rbound, vieq
+
+    Req_n = Rtot / (1.0 + L0 * f * A * (1 + Phisum) ** (f - 1))
+    Phi_n = A * KxStar * Req_n
+    assert jnp.isclose(Phisum, jnp.sum(Phi_n))
+    Rmulti_n = L0 * f / KxStar * Phi_n * ((1 + Phisum) ** (f - 1) -1)
+    return Lbound, Rbound, vieq, Rmulti_n
 
 
 def Req_solve(func, Rtot, *args):

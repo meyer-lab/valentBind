@@ -64,6 +64,12 @@ def test_equivalence():
     res = polyfc(L0, KxStar, f, Rtot, LigC, Kav)
     res2 = polyfc2(L0, KxStar, f, Rtot, LigC, Kav)
 
+    # test polyfc math
+    np.testing.assert_allclose(res[0], np.sum(res[2]))                          # Lbound = sum(vieq)
+    np.testing.assert_allclose(res[1], np.sum(res[2] * np.arange(1, f + 1)))    # Rbound = sum(each vieq * i)
+    np.testing.assert_allclose(np.sum(res[3]), res[1] - np.sum(res[2][0]))      # sum(Rmulti_n) = Rbound - vieq[f = 1]
+
+    # test equivalence
     np.testing.assert_allclose(res[0], np.sum(res2[0]))
     np.testing.assert_allclose(res[1], np.sum(res2[1]))
 
