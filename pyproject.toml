@@ -8,9 +8,9 @@ authors = ["Aaron Meyer <ameyer@ucla.edu>"]
 python = ">=3.9,<3.12"
 numpy = "^1.20"
 scipy = "^1.10"
-jax = "^0.3"
-jaxlib = "^0.3"
-jaxopt = "^0.6"
+jax = ">=0.3"
+jaxlib = ">=0.3"
+jaxopt = ">=0.6"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
