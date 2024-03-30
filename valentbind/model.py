@@ -3,16 +3,18 @@ Implementation of a simple multivalent binding model.
 """
 
 import numpy as np
+import jax
 import jax.numpy as jnp
 from jaxopt import ScipyRootFinding
-from jax.config import config
 from scipy.special import binom
 
-config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 
-def Req_polyfc(Phisum: float, Rtot: np.ndarray, L0: float, KxStar: float, f, A: np.ndarray):
-    """ Mass balance. Transformation to account for bounds. """
+def Req_polyfc(
+    Phisum: float, Rtot: np.ndarray, L0: float, KxStar: float, f, A: np.ndarray
+):
+    """Mass balance. Transformation to account for bounds."""
     Req = Rtot / (1.0 + L0 * f * A * (1 + Phisum) ** (f - 1))
     return Phisum - jnp.dot(A * KxStar, Req.T)
 
@@ -20,14 +22,25 @@ def Req_polyfc(Phisum: float, Rtot: np.ndarray, L0: float, KxStar: float, f, A: 
 def Req_polyc(Req, Rtot, L0: float, KxStar, Cplx, Ctheta, Kav):
     Psi = Req * Kav * KxStar
     Psirs = jnp.sum(Psi, axis=1).reshape(-1, 1) + 1
-    Psinorm = (Psi / Psirs)
+    Psinorm = Psi / Psirs
 
-    Rbound = L0 / KxStar * jnp.sum(Ctheta.reshape(-1, 1) * jnp.dot(Cplx, Psinorm) * jnp.exp(jnp.dot(Cplx, jnp.log1p(Psirs - 1))), axis=0)
+    Rbound = (
+        L0
+        / KxStar
+        * jnp.sum(
+            Ctheta.reshape(-1, 1)
+            * jnp.dot(Cplx, Psinorm)
+            * jnp.exp(jnp.dot(Cplx, jnp.log1p(Psirs - 1))),
+            axis=0,
+        )
+    )
     return Req + Rbound - Rtot
 
 
-def commonChecks(L0: float, Rtot: np.ndarray, KxStar: float, Kav: np.ndarray, Ctheta: np.ndarray):
-    """ Check that the inputs are sane. """
+def commonChecks(
+    L0: float, Rtot: np.ndarray, KxStar: float, Kav: np.ndarray, Ctheta: np.ndarray
+):
+    """Check that the inputs are sane."""
     Kav = jnp.array(Kav, dtype=float)
     Rtot = jnp.array(Rtot, dtype=float)
     Ctheta = jnp.array(Ctheta, dtype=float)
@@ -39,7 +52,9 @@ def commonChecks(L0: float, Rtot: np.ndarray, KxStar: float, Kav: np.ndarray, Ct
     return L0, Rtot, KxStar, Kav, Ctheta
 
 
-def polyfc(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav: np.ndarray):
+def polyfc(
+    L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav: np.ndarray
+):
     """
     The main function. Generate all info for heterogenenous binding case
     L0: concentration of ligand complexes.
@@ -61,27 +76,38 @@ def polyfc(L0: float, KxStar: float, f, Rtot: np.ndarray, LigC: np.ndarray, Kav:
     assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
     Phisum = lsq.params[0]
 
-
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
     Rbound = L0 / KxStar * f * Phisum * (1 + Phisum) ** (f - 1)
-    vieq = L0 / KxStar * binom(f, np.arange(1, f + 1)) * jnp.power(Phisum, np.arange(1, f + 1))
+    vieq = (
+        L0
+        / KxStar
+        * binom(f, np.arange(1, f + 1))
+        * jnp.power(Phisum, np.arange(1, f + 1))
+    )
 
     Req_n = Rtot / (1.0 + L0 * f * A * (1 + Phisum) ** (f - 1))
     Phi_n = A * KxStar * Req_n
     assert jnp.isclose(Phisum, jnp.sum(Phi_n))
-    Rmulti_n = L0 * f / KxStar * Phi_n * ((1 + Phisum) ** (f - 1) -1)
+    Rmulti_n = L0 * f / KxStar * Phi_n * ((1 + Phisum) ** (f - 1) - 1)
     return Lbound, Rbound, vieq, Rmulti_n
 
 
 def Req_solve(func, Rtot, *args):
-    """ Run least squares regression to calculate the Req vector. """
+    """Run least squares regression to calculate the Req vector."""
     lsq = ScipyRootFinding(method="lm", optimality_fun=func, tol=1e-10)
     lsq = lsq.run(jnp.zeros_like(Rtot), Rtot, *args)
     assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
     return lsq.params
 
 
-def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: np.ndarray, Kav: np.ndarray):
+def polyc(
+    L0: float,
+    KxStar: float,
+    Rtot: np.ndarray,
+    Cplx: np.ndarray,
+    Ctheta: np.ndarray,
+    Kav: np.ndarray,
+):
     """
     The main function to be called for multivalent binding
     :param L0: concentration of ligand complexes
@@ -111,9 +137,20 @@ def polyc(L0: float, KxStar: float, Rtot: np.ndarray, Cplx: np.ndarray, Ctheta: 
     Psinorm = (Psi / Psirs)[:, :-1]
 
     Lbound = L0 / KxStar * Ctheta * jnp.expm1(jnp.dot(Cplx, jnp.log(Psirs))).flatten()
-    Rbound = L0 / KxStar * Ctheta.reshape(-1, 1) * jnp.dot(Cplx, Psinorm) * jnp.exp(jnp.dot(Cplx, jnp.log(Psirs)))
-    with np.errstate(divide='ignore'):
-        Lfbnd = L0 / KxStar * Ctheta * jnp.exp(jnp.dot(Cplx, jnp.log(Psirs - 1.0))).flatten()
+    Rbound = (
+        L0
+        / KxStar
+        * Ctheta.reshape(-1, 1)
+        * jnp.dot(Cplx, Psinorm)
+        * jnp.exp(jnp.dot(Cplx, jnp.log(Psirs)))
+    )
+    with np.errstate(divide="ignore"):
+        Lfbnd = (
+            L0
+            / KxStar
+            * Ctheta
+            * jnp.exp(jnp.dot(Cplx, jnp.log(Psirs - 1.0))).flatten()
+        )
     assert len(Lbound) == len(Ctheta)
     assert Rbound.shape[0] == len(Ctheta)
     assert Rbound.shape[1] == len(Rtot)
