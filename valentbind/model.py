@@ -21,22 +21,18 @@ def Req_polyfc(
 
 
 def Req_polyc(
-    Req, Rtot: jax_array, L0: float, KxStar, Cplx, Ctheta, Kav: jax_array
+    Req: jax_array,
+    Rtot: jax_array,
+    L0_Kx_Ct: jax_array,
+    KxStar: float,
+    Cplx: jax_array,
+    Kav: jax_array,
 ) -> jax_array:
     Psi = Req * Kav * KxStar
-    Psirs = Psi.sum(axis=1).reshape(-1, 1) + 1
-    Psinorm = Psi / Psirs
+    Psirs = Psi.sum(axis=1) + 1
+    Psinorm = Psi / Psirs[:, jnp.newaxis]
 
-    Rbound = (
-        L0
-        / KxStar
-        * jnp.sum(
-            Ctheta.reshape(-1, 1)
-            * jnp.dot(Cplx, Psinorm)
-            * jnp.exp(jnp.dot(Cplx, jnp.log1p(Psirs - 1))),
-            axis=0,
-        )
-    )
+    Rbound = L0_Kx_Ct * jnp.exp(Cplx @ jnp.log(Psirs)) @ Cplx @ Psinorm
     return Req + Rbound - Rtot
 
 
@@ -102,7 +98,7 @@ def polyfc(
 
 def Req_solve(func, Rtot, *args):
     """Run least squares regression to calculate the Req vector."""
-    lsq = ScipyRootFinding(method="lm", optimality_fun=func, tol=1e-10)
+    lsq = ScipyRootFinding(method="lm", optimality_fun=func, tol=1e-12)
     lsq = lsq.run(jnp.zeros_like(Rtot), Rtot, *args)
     assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
     return lsq.params
@@ -135,30 +131,25 @@ def polyc(
     assert Kav.shape[0] == Cplx.shape[1]
     assert Cplx.shape[0] == Ctheta.size
 
+    L0_Kx_Ct = L0 / KxStar * Ctheta
+
     # Solve Req
-    Req = Req_solve(Req_polyc, Rtot, L0, KxStar, Cplx, Ctheta, Kav)
+    Req = Req_solve(Req_polyc, Rtot, L0_Kx_Ct, KxStar, Cplx, Kav)
 
     # Calculate the results
-    Psi = Req.T * Kav * KxStar
-    Psi = jnp.concatenate((Psi, jnp.ones((Kav.shape[0], 1))), axis=1)
-    Psirs = jnp.sum(Psi, axis=1).reshape(-1, 1)
-    Psinorm = (Psi / Psirs)[:, :-1]
+    Psi = Req * Kav * KxStar
+    Psirs = Psi.sum(axis=1) + 1
+    Psinorm = Psi / Psirs[:, jnp.newaxis]
 
-    Lbound = L0 / KxStar * Ctheta * jnp.expm1(jnp.dot(Cplx, jnp.log(Psirs))).flatten()
+    Lbound = L0_Kx_Ct * jnp.expm1(jnp.dot(Cplx, jnp.log(Psirs))).flatten()
     Rbound = (
-        L0
-        / KxStar
-        * Ctheta.reshape(-1, 1)
+        L0_Kx_Ct[:, jnp.newaxis]
         * jnp.dot(Cplx, Psinorm)
-        * jnp.exp(jnp.dot(Cplx, jnp.log(Psirs)))
+        * jnp.exp(Cplx @ jnp.log(Psirs))[:, jnp.newaxis]
     )
     with np.errstate(divide="ignore"):
-        Lfbnd = (
-            L0
-            / KxStar
-            * Ctheta
-            * jnp.exp(jnp.dot(Cplx, jnp.log(Psirs - 1.0))).flatten()
-        )
+        Lfbnd = L0_Kx_Ct * jnp.exp(jnp.dot(Cplx, jnp.log(Psirs - 1.0))).flatten()
+
     assert len(Lbound) == len(Ctheta)
     assert Rbound.shape[0] == len(Ctheta)
     assert Rbound.shape[1] == len(Rtot)
