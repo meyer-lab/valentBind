@@ -1,5 +1,5 @@
 [project]
-name = "valentbind"
+name = "valentBind"
 version = "0.1.0"
 description = "The multivalent binding model implemented in Python."
 authors = [
