@@ -87,15 +87,15 @@ def test_null_monomer():
     # [3 0 0] should be equivalent to [3 0 5] if the last ligand has affinity 0
     L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
     KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
-    Rtot = [1e5]
-    Kav = [[2e7], [3e5], [0]]
+    Rtot = np.array([1e5])
+    Kav = np.array([[2e7], [3e5], [0]])
 
-    res11 = polyc(L0, KxStar, Rtot, [[3, 0, 0]], [1], Kav)
-    res12 = polyc(L0, KxStar, Rtot, [[3, 0, 5]], [1], Kav)
-    res21 = polyc(L0, KxStar, Rtot, [[0, 6, 0]], [1], Kav)
-    res22 = polyc(L0, KxStar, Rtot, [[0, 6, 3]], [1], Kav)
-    res31 = polyc(L0, KxStar, Rtot, [[2, 4, 0]], [1], Kav)
-    res32 = polyc(L0, KxStar, Rtot, [[2, 4, 5]], [1], Kav)
+    res11 = polyc(L0, KxStar, Rtot, np.array([[3, 0, 0]]), np.array([1]), Kav)
+    res12 = polyc(L0, KxStar, Rtot, np.array([[3, 0, 5]]), np.array([1]), Kav)
+    res21 = polyc(L0, KxStar, Rtot, np.array([[0, 6, 0]]), np.array([1]), Kav)
+    res22 = polyc(L0, KxStar, Rtot, np.array([[0, 6, 3]]), np.array([1]), Kav)
+    res31 = polyc(L0, KxStar, Rtot, np.array([[2, 4, 0]]), np.array([1]), Kav)
+    res32 = polyc(L0, KxStar, Rtot, np.array([[2, 4, 5]]), np.array([1]), Kav)
 
     for i in range(2):
         assert res11[i] == res12[i]
@@ -112,7 +112,7 @@ def test_Lfbnd():
         100.0 + np.random.rand(nr) * (10.0 ** np.random.randint(4, 6, size=nr))
     )
     Kav = np.random.rand(nl, nr) * (10.0 ** np.random.randint(3, 7, size=(nl, nr)))
-    Cplx = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+    Cplx = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
     Ctheta = np.random.rand(4)
     Ctheta = Ctheta / sum(Ctheta)
 
