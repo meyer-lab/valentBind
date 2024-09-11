@@ -7,13 +7,13 @@ import jax
 import jax.numpy as jnp
 from jaxopt import ScipyRootFinding
 from scipy.special import binom
+import numpy.typing as npt
 
 jax.config.update("jax_enable_x64", True)
-jax_array = np.ndarray | jnp.ndarray
 
 
 def Req_polyfc(
-    Phisum: float, Rtot: jax_array, L0: float, KxStar: float, f, A: jax_array
+    Phisum: float, Rtot: npt.ArrayLike, L0: float, KxStar: float, f, A: jnp.ndarray
 ):
     """Mass balance. Transformation to account for bounds."""
     Req = Rtot / (1.0 + L0 * f * A * (1 + Phisum) ** (f - 1))
@@ -21,8 +21,8 @@ def Req_polyfc(
 
 
 def Req_polyc(
-    Req, Rtot: jax_array, L0: float, KxStar, Cplx, Ctheta, Kav: jax_array
-) -> jax_array:
+    Req, Rtot: npt.ArrayLike, L0: float, KxStar, Cplx, Ctheta, Kav: npt.ArrayLike
+) -> npt.ArrayLike:
     Psi = Req * Kav * KxStar
     Psirs = Psi.sum(axis=1).reshape(-1, 1) + 1
     Psinorm = Psi / Psirs
@@ -41,7 +41,11 @@ def Req_polyc(
 
 
 def commonChecks(
-    L0: float, Rtot: jax_array, KxStar: float, Kav: jax_array, Ctheta: jax_array
+    L0: float,
+    Rtot: npt.ArrayLike,
+    KxStar: float,
+    Kav: npt.ArrayLike,
+    Ctheta: npt.ArrayLike,
 ):
     """Check that the inputs are sane."""
     Kav = jnp.array(Kav, dtype=float)
@@ -59,9 +63,9 @@ def polyfc(
     L0: float,
     KxStar: float,
     f: int | float,
-    Rtot: jax_array,
-    LigC: jax_array,
-    Kav: jax_array,
+    Rtot: npt.ArrayLike,
+    LigC: npt.ArrayLike,
+    Kav: npt.ArrayLike,
 ):
     """
     The main function. Generate all info for heterogenenous binding case
@@ -111,10 +115,10 @@ def Req_solve(func, Rtot, *args):
 def polyc(
     L0: float,
     KxStar: float,
-    Rtot: jax_array,
-    Cplx: jax_array,
-    Ctheta: jax_array,
-    Kav: jax_array,
+    Rtot: npt.ArrayLike,
+    Cplx: npt.ArrayLike,
+    Ctheta: npt.ArrayLike,
+    Kav: npt.ArrayLike,
 ):
     """
     The main function to be called for multivalent binding
