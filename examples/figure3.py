@@ -139,9 +139,9 @@ def mixtureFig(ax, Lbound=True):
 sns.set_theme(font_scale=2)
 ax, f = getSetup((8, 4), (1, 2))
 mixtureFig(ax[0])
-h, l = ax[0].get_legend_handles_labels()
-l1 = ax[0].legend(h[:3], l[:3], title="Ligand", loc="center right")
-l2 = ax[0].legend(h[3:], l[3:], title="Cases", loc="lower center")
+h, l_labels = ax[0].get_legend_handles_labels()
+l1 = ax[0].legend(h[:3], l_labels[:3], title="Ligand", loc="center right")
+l2 = ax[0].legend(h[3:], l_labels[3:], title="Cases", loc="lower center")
 
 mixtureFig(ax[1], False)
 
