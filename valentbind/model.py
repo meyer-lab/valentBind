@@ -2,12 +2,12 @@
 Implementation of a simple multivalent binding model.
 """
 
-import numpy as np
 import jax
 import jax.numpy as jnp
+import numpy as np
+import numpy.typing as npt
 from jaxopt import ScipyRootFinding
 from scipy.special import binom
-import numpy.typing as npt
 
 jax.config.update("jax_enable_x64", True)
 

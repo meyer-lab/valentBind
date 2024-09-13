@@ -1,9 +1,11 @@
-import numpy as np
-from valentbind import polyc
-from matplotlib import gridspec, rcParams, pyplot as plt
 import matplotlib.cm as cm
-from matplotlib.patches import Ellipse
+import numpy as np
 import seaborn as sns
+from matplotlib import gridspec, rcParams
+from matplotlib import pyplot as plt
+from matplotlib.patches import Ellipse
+
+from valentbind import polyc
 
 
 def getSetup(figsize, gridd):

@@ -1,8 +1,10 @@
 import numpy as np
 import pandas as pd
-from valentbind import polyc
-from matplotlib import gridspec, rcParams, pyplot as plt
 import seaborn as sns
+from matplotlib import gridspec, rcParams
+from matplotlib import pyplot as plt
+
+from valentbind import polyc
 
 rcParams["pcolor.shading"] = "auto"
 
@@ -125,9 +127,7 @@ def mixtureFig(ax, Lbound=True):
     ax.set_xticks(xs)
     ax.set_xticklabels(
         [
-            "[2 0] {} nM\n[1 1] {} nM".format(
-                np.round(n, decimals=2), np.round(C01tot - n, decimals=2)
-            )
+            f"[2 0] {n:.2f} nM\n[1 1] {(C01tot - n):.2f} nM"
             for n in xs
         ]
     )
