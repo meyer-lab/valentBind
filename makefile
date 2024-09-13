@@ -1,15 +1,18 @@
-.PHONY: clean test
+.PHONY: clean test pyright
 
 all: test
 
-test:
-	poetry run pytest -s -v -x
+test: .venv
+	rye run pytest -s -v -x
 
-coverage.xml:
-	poetry run pytest --junitxml=junit.xml --cov=valentbind --cov-report xml:coverage.xml
+.venv:
+	rye sync
 
-mypy:
-	poetry run mypy --install-types --non-interactive --ignore-missing-imports valentbind
+coverage.xml: .venv
+	rye run pytest --junitxml=junit.xml --cov=valentbind --cov-report xml:coverage.xml
+
+pyright: .venv
+	rye run pyright valentbind
 
 clean:
 	rm -rf coverage.xml

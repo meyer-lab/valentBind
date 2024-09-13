@@ -1,6 +1,7 @@
 import numpy as np
-from scipy.special import binom
 from jax import jacrev
+from scipy.special import binom
+
 from ..model import polyc, polyfc
 
 
@@ -21,7 +22,8 @@ def multinomial(params):
 
 def polyfc2(L0, KxStar, f, Rtot, LigC, Kav):
     """This function should give the same result as polyfc() but less efficient.
-    This function is used for testing only. Use polyfc() for random complexes calculation
+    This function is used for testing only.
+    Use polyfc() for random complexes calculation.
     """
     LigC = np.array(LigC)
     assert LigC.ndim == 1
