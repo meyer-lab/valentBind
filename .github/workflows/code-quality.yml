@@ -8,12 +8,23 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Get dependencies cache key
+        id: dependencies-cache-key
+        run: echo "hash=$(md5sum pyproject.toml | awk '{print $1}')" >> $GITHUB_OUTPUT
+
       - name: Setup rye
         uses: eifinger/setup-rye@v4
         with:
           enable-cache: true
           version: '0.39.0'
+          cache-prefix: ${{ steps.dependencies-cache-key.outputs.hash }}
+
       - name: Formatting
         run: rye fmt --check
+
       - name: Linting
         run: rye lint
+
+      - name: Static type checks (pyright)
+        run: make pyright

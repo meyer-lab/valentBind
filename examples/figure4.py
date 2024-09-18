@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 from matplotlib import gridspec, rcParams
 from matplotlib import pyplot as plt
+from matplotlib.colors import Normalize
 from matplotlib.patches import Ellipse
 
 from valentbind import polyc
@@ -41,7 +42,9 @@ def heatmap(
     abundRange = (1.5, 4.5)
     abundScan = np.logspace(abundRange[0], abundRange[1], nAbdPts)
 
-    norm = plt.Normalize(vmin=vrange[0], vmax=vrange[1])
+    norm = Normalize(
+        vmin=vrange[0], vmax=vrange[1]
+    )  # Use Normalize instead of plt.Normalize
     cbar = ax.figure.colorbar(cm.ScalarMappable(norm=norm, cmap="YlGnBu"), ax=ax)
 
     if mode == 0:
@@ -60,6 +63,8 @@ def heatmap(
                 L0, KxStar, [abund1, abund2, 2e3], Cplx, Comp, Kav
             )[1][0, 1]
         )
+    else:
+        raise ValueError(f"Invalid mode: {mode}")
 
     X, Y = np.meshgrid(abundScan, abundScan)
     logZ = np.log(func(X, Y))
