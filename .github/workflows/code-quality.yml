@@ -16,13 +16,10 @@ jobs:
           version: '0.39.0'
 
       - name: Formatting
-        continue-on-error: true
         run: rye fmt --check
 
       - name: Linting
-        continue-on-error: true
         run: rye lint
 
       - name: Static type checks (pyright)
-        continue-on-error: true
-        run: python -m pyright
+        run: rye run pyright
