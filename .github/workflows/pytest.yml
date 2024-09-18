@@ -16,7 +16,7 @@ jobs:
         with:
           enable-cache: true
           version: '0.39.0'
-          cache-key: ${{ steps.dependencies-cache-key.outputs.hash }}
+          cache-prefix: ${{ steps.dependencies-cache-key.outputs.hash }}
       - name: Run tests
         run: make coverage.xml
       - name: Upload coverage to Codecov
