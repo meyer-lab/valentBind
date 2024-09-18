@@ -125,12 +125,7 @@ def mixtureFig(ax, Lbound=True):
 
     xs = np.arange(0, C01tot + 1e-5, C01tot / 4)
     ax.set_xticks(xs)
-    ax.set_xticklabels(
-        [
-            f"[2 0] {n:.2f} nM\n[1 1] {(C01tot - n):.2f} nM"
-            for n in xs
-        ]
-    )
+    ax.set_xticklabels([f"[2 0] {n:.2f} nM\n[1 1] {(C01tot - n):.2f} nM" for n in xs])
     ax.set_ylim(
         0,
     )
