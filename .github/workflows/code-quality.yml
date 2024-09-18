@@ -22,4 +22,4 @@ jobs:
         run: rye lint
 
       - name: Static type checks (pyright)
-        run: rye run pyright
+        run: rye sync && rye run pyright
