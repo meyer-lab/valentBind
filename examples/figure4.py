@@ -3,7 +3,7 @@ import numpy as np
 import seaborn as sns
 from matplotlib import gridspec, rcParams
 from matplotlib import pyplot as plt
-from matplotlib.colors import Normalize  # Add this import
+from matplotlib.colors import Normalize
 from matplotlib.patches import Ellipse
 
 from valentbind import polyc
