@@ -6,23 +6,21 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import numpy.typing as npt
-from jaxopt import ScipyRootFinding
+import optimistix as opt
 from scipy.special import binom
 
 jax.config.update("jax_enable_x64", True)
 
 
-def Req_polyfc(
-    Phisum: float, Rtot: npt.ArrayLike, L0: float, KxStar: float, f, A: jnp.ndarray
-):
+def Req_polyfc(Phisum: jnp.ndarray, args: tuple):
     """Mass balance. Transformation to account for bounds."""
+    Rtot, L0, KxStar, f, A = args
     Req = Rtot / (1.0 + L0 * f * A * (1 + Phisum) ** (f - 1))
     return Phisum - jnp.dot(A * KxStar, Req.T)
 
 
-def Req_polyc(
-    Req, Rtot: npt.ArrayLike, L0: float, KxStar, Cplx, Ctheta, Kav: npt.ArrayLike
-) -> npt.ArrayLike:
+def Req_polyc(Req, args: tuple) -> npt.ArrayLike:
+    Rtot, L0, KxStar, Cplx, Ctheta, Kav = args
     Psi = Req * Kav * KxStar
     Psirs = Psi.sum(axis=1).reshape(-1, 1) + 1
     Psinorm = Psi / Psirs
@@ -83,10 +81,11 @@ def polyfc(
     A = jnp.dot(LigC.T, Kav)
 
     # Find Phisum by fixed point iteration
-    lsq = ScipyRootFinding(method="lm", optimality_fun=Req_polyfc, tol=1e-12)
-    lsq = lsq.run(jnp.zeros(1), Rtot, L0, KxStar, f, A)
-    assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
-    Phisum = lsq.params[0]
+    solver = opt.Newton(rtol=1e-9, atol=1e-9)
+    result = opt.root_find(
+        Req_polyfc, solver, y0=jnp.zeros(1), args=(Rtot, L0, KxStar, f, A), throw=True
+    )
+    Phisum = result.value[0]
 
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
     Rbound = L0 / KxStar * f * Phisum * (1 + Phisum) ** (f - 1)
@@ -106,10 +105,11 @@ def polyfc(
 
 def Req_solve(func, Rtot, *args):
     """Run least squares regression to calculate the Req vector."""
-    lsq = ScipyRootFinding(method="lm", optimality_fun=func, tol=1e-10)
-    lsq = lsq.run(jnp.zeros_like(Rtot), Rtot, *args)
-    assert lsq.state.success, "Failure in rootfinding. " + str(lsq)
-    return lsq.params
+    solver = opt.Newton(rtol=1e-9, atol=1e-9)
+    result = opt.root_find(
+        func, solver, y0=jnp.zeros_like(Rtot), args=(Rtot, *args), throw=True
+    )
+    return result.value
 
 
 def polyc(
