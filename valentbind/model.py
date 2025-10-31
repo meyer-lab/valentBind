@@ -81,7 +81,7 @@ def polyfc(
     A = jnp.dot(LigC.T, Kav)
 
     # Find Phisum by fixed point iteration
-    solver = opt.Newton(rtol=1e-9, atol=1e-9)
+    solver = opt.LevenbergMarquardt(rtol=1e-9, atol=1e-9)
     result = opt.root_find(
         Req_polyfc, solver, y0=jnp.zeros(1), args=(Rtot, L0, KxStar, f, A), throw=True
     )
@@ -105,7 +105,7 @@ def polyfc(
 
 def Req_solve(func, Rtot, *args):
     """Run least squares regression to calculate the Req vector."""
-    solver = opt.Newton(rtol=1e-9, atol=1e-9)
+    solver = opt.LevenbergMarquardt(rtol=1e-9, atol=1e-9)
     result = opt.root_find(
         func, solver, y0=jnp.zeros_like(Rtot), args=(Rtot, *args), throw=True
     )
