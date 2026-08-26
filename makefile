@@ -8,9 +8,6 @@ test: .venv
 .venv:
 	uv sync
 
-coverage.xml: .venv
-	uv run pytest --junitxml=junit.xml --cov=valentbind --cov-report xml:coverage.xml
-
 ty: .venv
 	uv run ty check valentbind
 
