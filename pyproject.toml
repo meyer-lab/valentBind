@@ -26,6 +26,9 @@ dev = [
     "pandas>=2.2.2",
     "seaborn>=0.13.2",
     "matplotlib>=3.10",
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
 ]
 
 [tool.hatch.metadata]
