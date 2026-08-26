@@ -1,4 +1,4 @@
-.PHONY: clean test pyright
+.PHONY: clean test ty
 
 all: test
 
@@ -8,8 +8,8 @@ test: .venv
 .venv:
 	uv sync
 
-pyright: .venv
-	uv run pyright valentbind
+ty: .venv
+	uv run ty check valentbind
 
 clean:
 	rm -rf coverage.xml

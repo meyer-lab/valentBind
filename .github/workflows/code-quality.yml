@@ -20,5 +20,5 @@ jobs:
       - name: Linting
         run: uv run ruff check .
 
-      - name: Static type checks (pyright)
-        run: make pyright
+      - name: Static type checks (ty)
+        run: make ty
