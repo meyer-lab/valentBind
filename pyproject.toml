@@ -26,6 +26,7 @@ dev = [
     "pandas>=2.2.2",
     "seaborn>=0.13.2",
     "matplotlib>=3.10",
+    "ruff>=0.16.4",
 ]
 
 [tool.hatch.metadata]
