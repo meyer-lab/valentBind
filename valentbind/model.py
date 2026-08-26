@@ -2,6 +2,8 @@
 Implementation of a simple multivalent binding model.
 """
 
+from collections.abc import Callable
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -12,14 +14,56 @@ from scipy.special import binom
 jax.config.update("jax_enable_x64", True)
 
 
-def Req_polyfc(Phisum: jnp.ndarray, args: tuple):
-    """Mass balance. Transformation to account for bounds."""
+def Req_polyfc(
+    Phisum: jax.Array,
+    args: tuple[jax.Array, float, float, int | float, jax.Array],
+) -> jax.Array:
+    """
+    Mass balance residual for the homogeneous-ligand (polyfc) binding model.
+
+    This is the root-finding target passed to the solver in :func:`polyfc`;
+    it is zero when ``Phisum`` is the free-receptor-weighted binding
+    potential that is consistent with the mass balance for the total
+    receptor and free ligand concentrations.
+
+    :param Phisum: Current guess for the binding potential (a length-1
+        array, since the model reduces to a single scalar unknown).
+    :param args: Tuple of ``(Rtot, L0, KxStar, f, A)`` where ``Rtot`` is the
+        total receptor abundance per receptor type, ``L0`` is the total
+        ligand complex concentration, ``KxStar`` is the detailed-balance
+        corrected cross-linking constant, ``f`` is the ligand valency, and
+        ``A`` is the ligand-composition-weighted affinity vector.
+    :return: The residual ``Phisum - sum(A * KxStar * Req)``, which the
+        solver drives to zero.
+    """
     Rtot, L0, KxStar, f, A = args
     Req = Rtot / (1.0 + L0 * f * A * (1 + Phisum) ** (f - 1))
     return Phisum - jnp.dot(A * KxStar, Req.T)
 
 
-def Req_polyc(Req, args: tuple) -> npt.ArrayLike:
+def Req_polyc(
+    Req: jax.Array,
+    args: tuple[jax.Array, float, float, jax.Array, jax.Array, jax.Array],
+) -> jax.Array:
+    """
+    Mass balance residual for the heterogeneous-complex (polyc) binding model.
+
+    This is the root-finding target passed to the solver in :func:`polyc`;
+    it is zero when ``Req`` is the vector of free-receptor abundances
+    consistent with the mass balance for every receptor type.
+
+    :param Req: Current guess for the free receptor abundance per receptor
+        type.
+    :param args: Tuple of ``(Rtot, L0, KxStar, Cplx, Ctheta, Kav)`` where
+        ``Rtot`` is the total receptor abundance per receptor type, ``L0``
+        is the total ligand complex concentration, ``KxStar`` is the
+        detailed-balance corrected cross-linking constant, ``Cplx`` is the
+        monomer composition of each ligand complex, ``Ctheta`` is the
+        relative abundance of each complex, and ``Kav`` is the monomer
+        ligand/receptor affinity matrix.
+    :return: The residual ``Req + Rbound - Rtot``, which the solver drives
+        to zero.
+    """
     Rtot, L0, KxStar, Cplx, Ctheta, Kav = args
     Psi = Req * Kav * KxStar
     Psirs = Psi.sum(axis=1).reshape(-1, 1) + 1
@@ -44,14 +88,33 @@ def commonChecks(
     KxStar: float,
     Kav: npt.ArrayLike,
     Ctheta: npt.ArrayLike,
-):
-    """Check that the inputs are sane."""
+) -> tuple[float, jax.Array, float, jax.Array, jax.Array]:
+    """
+    Validate and normalize the inputs shared by :func:`polyfc` and :func:`polyc`.
+
+    Converts ``Rtot``, ``Kav``, and ``Ctheta`` to ``jax`` arrays, checks
+    that their shapes are mutually consistent, and normalizes ``Ctheta`` so
+    it sums to one.
+
+    :param L0: Concentration of ligand complexes.
+    :param Rtot: Total abundance of each receptor type on the cell.
+    :param KxStar: Detailed-balance corrected cross-linking constant.
+    :param Kav: Matrix of monomer ligand/receptor affinities (rows are
+        ligands, columns are receptors).
+    :param Ctheta: Relative abundance of each ligand or complex; renormalized
+        to sum to one.
+    :raises AssertionError: If the shapes of ``Rtot``, ``Kav``, or
+        ``Ctheta`` are inconsistent with one another.
+    :return: The tuple ``(L0, Rtot, KxStar, Kav, Ctheta)`` with ``Rtot``,
+        ``Kav``, and ``Ctheta`` converted to arrays and ``Ctheta``
+        normalized.
+    """
     Kav = jnp.array(Kav, dtype=float)
     Rtot = jnp.array(Rtot, dtype=float)
     Ctheta = jnp.array(Ctheta, dtype=float)
     assert Rtot.ndim <= 1
-    assert Rtot.size == Kav.shape[1]
     assert Kav.ndim == 2
+    assert Rtot.size == Kav.shape[1]
     assert Ctheta.ndim <= 1
     Ctheta = Ctheta / jnp.sum(Ctheta)
     return L0, Rtot, KxStar, Kav, Ctheta
@@ -64,15 +127,31 @@ def polyfc(
     Rtot: npt.ArrayLike,
     LigC: npt.ArrayLike,
     Kav: npt.ArrayLike,
-):
+) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
     """
-    The main function. Generate all info for heterogenenous binding case
-    L0: concentration of ligand complexes.
-    KxStar: detailed balance-corrected Kx.
-    f: valency
-    Rtot: numbers of each receptor appearing on the cell.
-    LigC: the composition of the mixture used.
-    Kav: a matrix of Ka values. row = ligands, col = receptors
+    Solve the multivalent binding model for a single homogeneous ligand complex.
+
+    Computes bound ligand, bound receptor, and per-valency binding
+    statistics for a population of identical ligand complexes of valency
+    ``f``, each assembled from a fixed mixture of monomer ligands
+    (``LigC``), binding a set of receptors (``Rtot``) with affinities
+    ``Kav``.
+
+    :param L0: Concentration of ligand complexes.
+    :param KxStar: Detailed-balance corrected cross-linking constant.
+    :param f: Valency of the ligand complex.
+    :param Rtot: Total abundance of each receptor type on the cell.
+    :param LigC: Relative composition of monomer ligands within the
+        complex; renormalized to sum to one.
+    :param Kav: Matrix of monomer ligand/receptor affinities (rows are
+        ligands, columns are receptors).
+    :return: A tuple ``(Lbound, Rbound, vieq, Rmulti_n)`` where ``Lbound``
+        is the total concentration of bound ligand complex, ``Rbound`` is
+        the total abundance of bound receptor (summed across receptor
+        types), ``vieq`` is the concentration of complex bound by exactly
+        ``i`` receptors for each valency ``i`` from 1 to ``f``, and
+        ``Rmulti_n`` is the abundance of each receptor type engaged in
+        multivalent (more than one ligand-receptor bond) binding.
     """
     # Data consistency check
     L0, Rtot, KxStar, Kav, LigC = commonChecks(L0, Rtot, KxStar, Kav, LigC)
@@ -103,8 +182,19 @@ def polyfc(
     return Lbound, Rbound, vieq, Rmulti_n
 
 
-def Req_solve(func, Rtot, *args):
-    """Run least squares regression to calculate the Req vector."""
+def Req_solve(func: Callable[..., jax.Array], Rtot: jax.Array, *args) -> jax.Array:
+    """
+    Run Levenberg-Marquardt root finding to calculate the free receptor vector.
+
+    :param func: Residual function to find the root of; called as
+        ``func(Req, (Rtot, *args))``.
+    :param Rtot: Total abundance of each receptor type on the cell; also
+        used as the shape template for the initial guess (zeros).
+    :param args: Additional positional arguments forwarded to ``func``
+        after ``Rtot``.
+    :return: The free receptor abundance vector ``Req`` that zeroes
+        ``func``.
+    """
     solver = opt.LevenbergMarquardt(rtol=1e-9, atol=1e-9)
     result = opt.root_find(
         func, solver, y0=jnp.zeros_like(Rtot), args=(Rtot, *args), throw=True
@@ -119,18 +209,31 @@ def polyc(
     Cplx: npt.ArrayLike,
     Ctheta: npt.ArrayLike,
     Kav: npt.ArrayLike,
-):
+) -> tuple[jax.Array, jax.Array, jax.Array]:
     """
-    The main function to be called for multivalent binding
-    :param L0: concentration of ligand complexes
-    :param KxStar: Kx for detailed balance correction
-    :param Rtot: numbers of each receptor on the cell
-    :param Cplx: the monomer ligand composition of each complex
-    :param Ctheta: the composition of complexes
-    :param Kav: Ka for monomer ligand to receptors
-    :return:
-        Lbound: a list of Lbound of each complex
-        Rbound: a list of Rbound of each kind of receptor
+    Solve the multivalent binding model for a mixture of heterogeneous ligand complexes.
+
+    Computes bound ligand, bound receptor, and free ligand statistics for
+    a population of ligand complexes that can differ in their monomer
+    composition (``Cplx``), binding a set of receptors (``Rtot``) with
+    affinities ``Kav``.
+
+    :param L0: Concentration of ligand complexes.
+    :param KxStar: Detailed-balance corrected cross-linking constant.
+    :param Rtot: Total abundance of each receptor type on the cell.
+    :param Cplx: Monomer ligand composition of each complex; rows are
+        complexes, columns are monomer ligand types.
+    :param Ctheta: Relative abundance of each complex; renormalized to sum
+        to one.
+    :param Kav: Matrix of monomer ligand/receptor affinities (rows are
+        ligands, columns are receptors).
+    :raises AssertionError: If the shapes of ``Cplx``, ``Kav``, or
+        ``Ctheta`` are inconsistent with one another.
+    :return: A tuple ``(Lbound, Rbound, Lfbnd)`` where ``Lbound`` is the
+        concentration of bound ligand complex for each complex type,
+        ``Rbound`` is the abundance of bound receptor for each complex type
+        and receptor type, and ``Lfbnd`` is the concentration of complex
+        bound by exactly one receptor for each complex type.
     """
     # Consistency check
     L0, Rtot, KxStar, Kav, Ctheta = commonChecks(L0, Rtot, KxStar, Kav, Ctheta)

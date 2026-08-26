@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   code-quality:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -20,5 +20,5 @@ jobs:
       - name: Linting
         run: uv run ruff check .
 
-      - name: Static type checks (pyright)
-        run: make pyright
+      - name: Static type checks (ty)
+        run: make ty

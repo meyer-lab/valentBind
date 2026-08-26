@@ -1,11 +1,24 @@
+from collections.abc import Iterator
+
+import jax
 import numpy as np
+import numpy.typing as npt
 from jax import jacrev
 from scipy.special import binom
 
 from ..model import polyc, polyfc
 
 
-def genPerm(len, sum):
+def genPerm(len: int, sum: int) -> Iterator[list[int]]:
+    """
+    Enumerate every way to write ``sum`` as an ordered sum of ``len``
+    non-negative integers.
+
+    :param len: Number of terms in each partition.
+    :param sum: Target value the terms of each partition must add to.
+    :return: An iterator over all partitions (each a list of length ``len``)
+        of ``sum`` into ``len`` non-negative integers.
+    """
     if len <= 1:
         yield [sum]
     else:
@@ -14,13 +27,27 @@ def genPerm(len, sum):
                 yield sub + [i]
 
 
-def multinomial(params):
+def multinomial(params: npt.NDArray) -> float:
+    """
+    Compute the multinomial coefficient for the given group sizes.
+
+    :param params: Sizes of each group; their sum is the total number of
+        items being partitioned.
+    :return: The multinomial coefficient ``sum(params)! / prod(p! for p in params)``.
+    """
     if len(params) == 1:
         return 1
     return binom(sum(params), params[-1]) * multinomial(params[:-1])
 
 
-def polyfc2(L0, KxStar, f, Rtot, LigC, Kav):
+def polyfc2(
+    L0: float,
+    KxStar: float,
+    f: int,
+    Rtot: npt.ArrayLike,
+    LigC: npt.ArrayLike,
+    Kav: npt.ArrayLike,
+) -> tuple[jax.Array, jax.Array, jax.Array]:
     """This function should give the same result as polyfc() but less efficient.
     This function is used for testing only.
     Use polyfc() for random complexes calculation.
@@ -37,7 +64,7 @@ def polyfc2(L0, KxStar, f, Rtot, LigC, Kav):
     return polyc(L0, KxStar, Rtot, Cplx, Ctheta, Kav)
 
 
-def test_grad():
+def test_grad() -> None:
     """Test the gradient of Lbnd w.r.t. Rtot."""
     L0 = 1.0e-9
     KxStar = 1.0e-12
@@ -56,7 +83,9 @@ def test_grad():
     assert outt.shape == Rtot.shape
 
 
-def test_equivalence():
+def test_equivalence() -> None:
+    """Test that polyfc() and the slower reference polyfc2() agree, and
+    check polyfc() internal consistency."""
     L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
     KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
     f = np.random.randint(1, 10)
@@ -85,7 +114,9 @@ def test_equivalence():
     np.testing.assert_allclose(res[1], np.sum(res2[1]))
 
 
-def test_null_monomer():
+def test_null_monomer() -> None:
+    """Test that adding a zero-affinity monomer ligand to a complex doesn't
+    change binding."""
     # [3 0 0] should be equivalent to [3 0 5] if the last ligand has affinity 0
     L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
     KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
@@ -105,7 +136,9 @@ def test_null_monomer():
         assert res31[i] == res32[i]
 
 
-def test_Lfbnd():
+def test_Lfbnd() -> None:
+    """Test that Lfbnd (singly-bound complex) sums to Lbound and matches
+    per-receptor Rbound totals."""
     L0 = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
     KxStar = np.random.rand() * 10.0 ** np.random.randint(-15, -5)
     nl = 4
