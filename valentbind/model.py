@@ -113,8 +113,8 @@ def commonChecks(
     Rtot = jnp.array(Rtot, dtype=float)
     Ctheta = jnp.array(Ctheta, dtype=float)
     assert Rtot.ndim <= 1
-    assert Rtot.size == Kav.shape[1]
     assert Kav.ndim == 2
+    assert Rtot.size == Kav.shape[1]
     assert Ctheta.ndim <= 1
     Ctheta = Ctheta / jnp.sum(Ctheta)
     return L0, Rtot, KxStar, Kav, Ctheta
