@@ -1,4 +1,4 @@
-.PHONY: clean test pyright
+.PHONY: clean test ty
 
 all: test
 
@@ -11,8 +11,8 @@ test: .venv
 coverage.xml: .venv
 	uv run pytest --junitxml=junit.xml --cov=valentbind --cov-report xml:coverage.xml
 
-pyright: .venv
-	uv run pyright valentbind
+ty: .venv
+	uv run ty check valentbind
 
 clean:
 	rm -rf coverage.xml
