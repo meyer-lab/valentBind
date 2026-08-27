@@ -26,8 +26,8 @@ def Req_polyfc(
     potential that is consistent with the mass balance for the total
     receptor and free ligand concentrations.
 
-    :param Phisum: Current guess for the binding potential (a length-1
-        array, since the model reduces to a single scalar unknown).
+    :param Phisum: Current guess for the binding potential (a scalar array,
+        since the model reduces to a single scalar unknown).
     :param args: Tuple of ``(Rtot, L0, KxStar, f, A)`` where ``Rtot`` is the
         total receptor abundance per receptor type, ``L0`` is the total
         ligand complex concentration, ``KxStar`` is the detailed-balance
@@ -42,17 +42,18 @@ def Req_polyfc(
 
 
 def Req_polyc(
-    Req: jax.Array,
+    log_Req: jax.Array,
     args: tuple[jax.Array, float, float, jax.Array, jax.Array, jax.Array],
 ) -> jax.Array:
     """
-    Mass balance residual for the heterogeneous-complex (polyc) binding model.
+    Mass balance residual in log-space for the heterogeneous-complex (polyc)
+    binding model.
 
     This is the root-finding target passed to the solver in :func:`polyc`;
-    it is zero when ``Req`` is the vector of free-receptor abundances
+    it is zero when ``log_Req`` is the natural logarithm of free-receptor abundances
     consistent with the mass balance for every receptor type.
 
-    :param Req: Current guess for the free receptor abundance per receptor
+    :param log_Req: Current guess for the log of free receptor abundance per receptor
         type.
     :param args: Tuple of ``(Rtot, L0, KxStar, Cplx, Ctheta, Kav)`` where
         ``Rtot`` is the total receptor abundance per receptor type, ``L0``
@@ -61,10 +62,11 @@ def Req_polyc(
         monomer composition of each ligand complex, ``Ctheta`` is the
         relative abundance of each complex, and ``Kav`` is the monomer
         ligand/receptor affinity matrix.
-    :return: The residual ``Req + Rbound - Rtot``, which the solver drives
-        to zero.
+    :return: The log-ratio residual ``log(Req + Rbound) - log(Rtot)``, which the solver
+        drives to zero.
     """
     Rtot, L0, KxStar, Cplx, Ctheta, Kav = args
+    Req = jnp.exp(log_Req)
     Psi = Req * Kav * KxStar
     Psirs = Psi.sum(axis=1).reshape(-1, 1) + 1
     Psinorm = Psi / Psirs
@@ -79,7 +81,7 @@ def Req_polyc(
             axis=0,
         )
     )
-    return Req + Rbound - Rtot
+    return jnp.log(Req + Rbound) - jnp.log(Rtot)
 
 
 def commonChecks(
@@ -159,12 +161,18 @@ def polyfc(
 
     A = jnp.dot(LigC.T, Kav)
 
-    # Find Phisum by fixed point iteration
-    solver = opt.LevenbergMarquardt(rtol=1e-9, atol=1e-9)
+    # Find Phisum by guaranteed bracketed bisection
+    solver = opt.Bisection(rtol=1e-12, atol=1e-12)
+    upper = jnp.maximum(jnp.dot(A * KxStar, Rtot.T), 1e-12)
     result = opt.root_find(
-        Req_polyfc, solver, y0=jnp.zeros(1), args=(Rtot, L0, KxStar, f, A), throw=True
+        Req_polyfc,
+        solver,
+        y0=jnp.array(0.0),
+        args=(Rtot, L0, KxStar, f, A),
+        options=dict(lower=jnp.array(0.0), upper=upper),
+        throw=True,
     )
-    Phisum = result.value[0]
+    Phisum = result.value
 
     Lbound = L0 / KxStar * ((1 + Phisum) ** f - 1)
     Rbound = L0 / KxStar * f * Phisum * (1 + Phisum) ** (f - 1)
@@ -182,24 +190,47 @@ def polyfc(
     return Lbound, Rbound, vieq, Rmulti_n
 
 
-def Req_solve(func: Callable[..., jax.Array], Rtot: jax.Array, *args) -> jax.Array:
+def Req_solve(
+    func: Callable[..., jax.Array],
+    Rtot: jax.Array,
+    L0: float,
+    KxStar: float,
+    Cplx: jax.Array,
+    Ctheta: jax.Array,
+    Kav: jax.Array,
+) -> jax.Array:
     """
-    Run Levenberg-Marquardt root finding to calculate the free receptor vector.
+    Run Levenberg-Marquardt root finding in log-space to calculate the free
+    receptor vector.
 
-    :param func: Residual function to find the root of; called as
-        ``func(Req, (Rtot, *args))``.
-    :param Rtot: Total abundance of each receptor type on the cell; also
-        used as the shape template for the initial guess (zeros).
-    :param args: Additional positional arguments forwarded to ``func``
-        after ``Rtot``.
+    Initializes from an analytical 1:1 Langmuir binding approximation to ensure
+    rapid and robust convergence.
+
+    :param func: Residual function to find the root of in log space; called as
+        ``func(log_Req, (Rtot, L0, KxStar, Cplx, Ctheta, Kav))``.
+    :param Rtot: Total abundance of each receptor type on the cell.
+    :param L0: Total ligand complex concentration.
+    :param KxStar: Detailed-balance corrected cross-linking constant.
+    :param Cplx: Monomer ligand composition of each complex.
+    :param Ctheta: Relative abundance of each complex.
+    :param Kav: Matrix of monomer ligand/receptor affinities.
     :return: The free receptor abundance vector ``Req`` that zeroes
         ``func``.
     """
-    solver = opt.LevenbergMarquardt(rtol=1e-9, atol=1e-9)
+    L_monomer = jnp.dot(Ctheta, Cplx) * L0
+    A_eff = jnp.dot(L_monomer, Kav)
+    Req_init = Rtot / (1.0 + A_eff)
+    log_Req_0 = jnp.log(jnp.maximum(Req_init, 1e-30))
+
+    solver = opt.LevenbergMarquardt(rtol=1e-10, atol=1e-10)
     result = opt.root_find(
-        func, solver, y0=jnp.zeros_like(Rtot), args=(Rtot, *args), throw=True
+        func,
+        solver,
+        y0=log_Req_0,
+        args=(Rtot, L0, KxStar, Cplx, Ctheta, Kav),
+        throw=True,
     )
-    return result.value
+    return jnp.exp(result.value)
 
 
 def polyc(
