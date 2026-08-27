@@ -56,3 +56,36 @@ def test_polyfc_Rbound_increases_with_Rtot() -> None:
     _, Rbound_high, _, _ = polyfc(L0, KxStar, f, np.array([1e5, 1e5]), LigC, Kav)
 
     assert float(Rbound_high) > float(Rbound_low)
+
+
+def test_polyc_extreme_regime_convergence() -> None:
+    """Test convergence on steep multivalent binding with mixed complexes."""
+    from ..model import polyc
+
+    L0 = 1e-14
+    KxStar = 1e-6
+    Rtot = np.array([8e4, 7e4])
+    Cplx = [[2, 3, 2, 1], [1, 1, 1, 1], [2, 2, 1, 3], [0, 1, 3, 0]]
+    Ctheta = [0.25, 0.25, 0.25, 0.25]
+    Kav = [[8e3, 9e5], [6e2, 1e3], [6e5, 6e3], [5e4, 9e1]]
+
+    Lbound, Rbound, Lfbnd = polyc(L0, KxStar, Rtot, Cplx, Ctheta, Kav)
+    assert np.all(Lbound > 0.0)
+    assert np.all(Rbound > 0.0)
+    assert np.all(np.sum(Rbound, axis=0) <= Rtot * (1.0 + 1e-6))
+
+
+def test_polyfc_high_valency() -> None:
+    """Test polyfc convergence with high valency (f=12) and strong binding."""
+    L0 = 1e-10
+    KxStar = 1e-11
+    f = 12
+    Rtot = np.array([1e6])
+    LigC = [1.0]
+    Kav = [[1e8]]
+
+    Lbound, Rbound, vieq, Rmulti_n = polyfc(L0, KxStar, f, Rtot, LigC, Kav)
+    assert float(Lbound) > 0.0
+    assert float(Rbound) > 0.0
+    assert len(vieq) == 12
+    np.testing.assert_allclose(float(Lbound), float(np.sum(vieq)), rtol=1e-6)
